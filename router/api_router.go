@@ -11,7 +11,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func SetAPIRouter(server *gin.Engine, embeddedFS embed.FS, staticFileSystem http.FileSystem) {
+func SetAPIRouter(server *gin.Engine, embeddedFS embed.FS, staticFileSystem http.FileSystem, enableStatic bool) {
 	// 健康检查
 	server.GET("/health", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{
@@ -145,41 +145,54 @@ func SetAPIRouter(server *gin.Engine, embeddedFS embed.FS, staticFileSystem http
 		}
 	}
 
-	// 前端路由处理 - SPA应用的路由处理
-	server.NoRoute(func(c *gin.Context) {
-		path := c.Request.URL.Path
+	// 前端路由处理 - 只在启用静态文件服务时处理
+	if enableStatic {
+		server.NoRoute(func(c *gin.Context) {
+			path := c.Request.URL.Path
 
-		// 如果是 API 请求，返回404
-		if strings.HasPrefix(path, "/api/") || strings.HasPrefix(path, "/health") {
-			c.JSON(http.StatusNotFound, gin.H{"error": "API not found"})
-			return
-		}
-
-		// 如果是 claude-code 路径但不是已定义的路由，返回空白200响应
-		if strings.HasPrefix(path, "/claude-code/") {
-			c.Status(200)
-			return
-		}
-
-		// 尝试从嵌入文件系统中获取静态文件
-		if staticFileSystem != nil {
-			file, err := staticFileSystem.Open(strings.TrimPrefix(path, "/"))
-			if err == nil {
-				if closeErr := file.Close(); closeErr != nil {
-					// 记录关闭文件错误，但不影响继续处理
-				}
-				// 成功找到文件，使用文件服务器处理
-				http.FileServer(staticFileSystem).ServeHTTP(c.Writer, c.Request)
+			// 如果是 API 请求，返回404
+			if strings.HasPrefix(path, "/api/") || strings.HasPrefix(path, "/health") {
+				c.JSON(http.StatusNotFound, gin.H{"error": "API not found"})
 				return
 			}
-		}
 
-		// 如果找不到静态文件，返回 index.html (SPA路由)
-		indexContent, err := embeddedFS.ReadFile("web/dist/index.html")
-		if err != nil {
-			c.String(http.StatusInternalServerError, "Failed to load index.html: "+err.Error())
-			return
-		}
-		c.Data(http.StatusOK, "text/html; charset=utf-8", indexContent)
-	})
+			// 如果是 claude-code 路径但不是已定义的路由，返回空白200响应
+			if strings.HasPrefix(path, "/claude-code/") {
+				c.Status(200)
+				return
+			}
+
+			// 尝试从嵌入文件系统中获取静态文件
+			if staticFileSystem != nil {
+				file, err := staticFileSystem.Open(strings.TrimPrefix(path, "/"))
+				if err == nil {
+					if closeErr := file.Close(); closeErr != nil {
+						// 记录关闭文件错误，但不影响继续处理
+					}
+					// 成功找到文件，使用文件服务器处理
+					http.FileServer(staticFileSystem).ServeHTTP(c.Writer, c.Request)
+					return
+				}
+			}
+
+			// 如果找不到静态文件，返回 index.html (SPA路由)
+			indexContent, err := embeddedFS.ReadFile("web/dist/index.html")
+			if err != nil {
+				c.String(http.StatusInternalServerError, "Failed to load index.html: "+err.Error())
+				return
+			}
+			c.Data(http.StatusOK, "text/html; charset=utf-8", indexContent)
+		})
+	} else {
+		// 纯API模式，对非API路径返回404
+		server.NoRoute(func(c *gin.Context) {
+			path := c.Request.URL.Path
+			// 如果是 claude-code 路径但不是已定义的路由，返回空白200响应
+			if strings.HasPrefix(path, "/claude-code/") {
+				c.Status(200)
+				return
+			}
+			c.JSON(http.StatusNotFound, gin.H{"error": "Not found - API only mode"})
+		})
+	}
 }

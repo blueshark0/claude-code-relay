@@ -85,14 +85,25 @@ func main() {
 	// 设置跨域中间件
 	server.Use(middleware.CORS())
 
-	// 准备静态文件系统
-	var staticFileSystem http.FileSystem
-	if sub, err := fs.Sub(staticFS, "web/dist"); err == nil {
-		staticFileSystem = http.FS(sub)
+	// 检查是否启用静态文件服务
+	serveStatic := os.Getenv("SERVE_STATIC")
+	if serveStatic == "" {
+		serveStatic = "true" // 默认启用，保持向后兼容
 	}
 
-	// 设置API前后端路由
-	router.SetAPIRouter(server, staticFS, staticFileSystem)
+	// 准备静态文件系统
+	var staticFileSystem http.FileSystem
+	if serveStatic == "true" {
+		if sub, err := fs.Sub(staticFS, "web/dist"); err == nil {
+			staticFileSystem = http.FS(sub)
+		}
+		common.SysLog("Static file serving enabled")
+	} else {
+		common.SysLog("Static file serving disabled - API only mode")
+	}
+
+	// 设置API路由
+	router.SetAPIRouter(server, staticFS, staticFileSystem, serveStatic == "true")
 
 	// 启动服务器
 	port := os.Getenv("PORT")
