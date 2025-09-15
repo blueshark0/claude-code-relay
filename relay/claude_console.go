@@ -10,9 +10,6 @@ import (
 	"context"
 	"crypto/tls"
 	"errors"
-	"github.com/gin-gonic/gin"
-	"github.com/tidwall/gjson"
-	"github.com/tidwall/sjson"
 	"io"
 	"log"
 	"net/http"
@@ -21,6 +18,10 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/gin-gonic/gin"
+	"github.com/tidwall/gjson"
+	"github.com/tidwall/sjson"
 )
 
 const (
@@ -160,7 +161,7 @@ func parseConsoleHTTPTimeout() time.Duration {
 
 // createConsoleRequest 创建Console请求
 func createConsoleRequest(c *gin.Context, body []byte, account *model.Account) (*http.Request, error) {
-	requestURL := account.RequestURL + "/v1/messages"
+	requestURL := account.RequestURL + "/v1/messages?beta=true"
 
 	req, err := http.NewRequestWithContext(
 		c.Request.Context(),
