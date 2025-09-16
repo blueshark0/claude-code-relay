@@ -5,18 +5,28 @@ import (
 	"claude-code-relay/model"
 	"claude-code-relay/scheduled"
 	"net/http"
+	"os"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
 )
 
 func GetStatus(c *gin.Context) {
+	// 检查是否启用用户注册功能
+	enableRegistration := os.Getenv("ENABLE_REGISTRATION")
+	if enableRegistration == "" {
+		enableRegistration = "true" // 默认启用，保持向后兼容
+	}
+
+	registrationEnabled := enableRegistration == "true"
+
 	c.JSON(http.StatusOK, gin.H{
 		"message": "服务运行正常",
 		"code":    constant.Success,
 		"data": gin.H{
-			"status":  "running",
-			"version": "1.0.0",
+			"status":               "running",
+			"version":              "1.0.0",
+			"registration_enabled": registrationEnabled,
 		},
 	})
 }

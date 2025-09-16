@@ -6,6 +6,7 @@ import (
 	"claude-code-relay/model"
 	"claude-code-relay/service"
 	"net/http"
+	"os"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
@@ -205,6 +206,20 @@ func SendVerificationCode(c *gin.Context) {
 
 // Register 新用户注册
 func Register(c *gin.Context) {
+	// 检查是否启用用户注册功能
+	enableRegistration := os.Getenv("ENABLE_REGISTRATION")
+	if enableRegistration == "" {
+		enableRegistration = "true" // 默认启用，保持向后兼容
+	}
+
+	if enableRegistration != "true" {
+		c.JSON(http.StatusForbidden, gin.H{
+			"error": "用户注册功能已关闭",
+			"code":  constant.Forbidden,
+		})
+		return
+	}
+
 	var req RegisterRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
