@@ -78,6 +78,27 @@
           <span>${{ (row.today_total_cost || 0).toFixed(4) }}</span>
         </template>
 
+        <template #usage_info="{ row }">
+          <div style="font-size: 12px">
+            <div>
+              今日: ${{ (row.today_total_cost || 0).toFixed(4) }}
+              <span v-if="row.daily_limit > 0">
+                / ${{ row.daily_limit.toFixed(2) }} ({{
+                  ((row.today_total_cost / row.daily_limit) * 100).toFixed(1)
+                }}%)
+              </span>
+            </div>
+            <div style="margin-top: 4px">
+              累计: ${{ (row.total_cost || 0).toFixed(4) }}
+              <span v-if="row.total_limit > 0">
+                / ${{ row.total_limit.toFixed(2) }} ({{
+                  ((row.total_cost / row.total_limit) * 100).toFixed(1)
+                }}%)
+              </span>
+            </div>
+          </div>
+        </template>
+
         <template #weekly_count="{ row }">
           <t-tag theme="default" variant="light"> {{ row.weekly_count || 0 }} </t-tag>
         </template>
@@ -278,6 +299,32 @@
           </t-col>
         </t-row>
 
+        <!-- 限额设置 -->
+        <t-row :gutter="16">
+          <t-col :span="4">
+            <t-form-item label="每日限额(USD)" name="daily_limit">
+              <t-input-number
+                v-model="formData.daily_limit"
+                :min="0"
+                :step="0.1"
+                :decimal-places="2"
+                placeholder="0表示不限制"
+              />
+            </t-form-item>
+          </t-col>
+          <t-col :span="4">
+            <t-form-item label="总限额(USD)" name="total_limit">
+              <t-input-number
+                v-model="formData.total_limit"
+                :min="0"
+                :step="0.1"
+                :decimal-places="2"
+                placeholder="0表示不限制"
+              />
+            </t-form-item>
+          </t-col>
+        </t-row>
+
         <!-- Claude 平台令牌配置 -->
         <template v-if="formData.platform_type === 'claude'">
           <!-- Claude平台显示授权方式选择 -->
@@ -452,6 +499,11 @@ const COLUMNS: PrimaryTableCol<TableRowData>[] = [
     width: 100,
   },
   {
+    title: '使用情况',
+    colKey: 'usage_info',
+    width: 200,
+  },
+  {
     title: '本周使用',
     colKey: 'weekly_count',
     width: 100,
@@ -517,6 +569,8 @@ const formData = reactive<AccountCreateParams & AccountUpdateParams>({
   group_id: 0,
   priority: 100,
   weight: 100,
+  daily_limit: 0,
+  total_limit: 0,
   enable_proxy: false,
   proxy_uri: '',
   model_mapping: '',
@@ -660,6 +714,8 @@ const handleCreate = () => {
     group_id: 0,
     priority: 100,
     weight: 100,
+    daily_limit: 0,
+    total_limit: 0,
     enable_proxy: false,
     proxy_uri: '',
     model_mapping: '',
@@ -699,6 +755,8 @@ const handleEdit = (item: Account) => {
     access_token: item.access_token || '', // 现在回填访问令牌
     refresh_token: item.refresh_token || '', // 现在回填刷新令牌
     today_usage_count: item.today_usage_count,
+    daily_limit: item.daily_limit || 0,
+    total_limit: item.total_limit || 0,
   });
 
   // 根据是否有令牌数据智能设置授权方式
@@ -742,6 +800,8 @@ const handleFormConfirm = async () => {
         access_token: formData.access_token,
         refresh_token: formData.refresh_token,
         today_usage_count: formData.today_usage_count,
+        daily_limit: formData.daily_limit,
+        total_limit: formData.total_limit,
       };
       await updateAccount(editingItem.value.id, updateData);
       MessagePlugin.success('更新成功');
@@ -765,6 +825,8 @@ const handleFormConfirm = async () => {
         refresh_token: formData.refresh_token,
         expires_at: formData.expires_at,
         today_usage_count: formData.today_usage_count,
+        daily_limit: formData.daily_limit,
+        total_limit: formData.total_limit,
       };
       await createAccount(createData);
       MessagePlugin.success('创建成功');

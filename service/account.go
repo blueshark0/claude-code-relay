@@ -61,6 +61,8 @@ func (s *AccountService) CreateAccount(req *model.CreateAccountRequest, userID u
 		GroupID:          req.GroupID,
 		Priority:         req.Priority,
 		Weight:           req.Weight,
+		DailyLimit:       req.DailyLimit,
+		TotalLimit:       req.TotalLimit,
 		EnableProxy:      req.EnableProxy,
 		ProxyURI:         req.ProxyURI,
 		ModelMapping:     req.ModelMapping,
@@ -112,6 +114,8 @@ func (s *AccountService) UpdateAccount(id uint, req *model.UpdateAccountRequest,
 	}
 	account.Priority = req.Priority
 	account.Weight = req.Weight
+	account.DailyLimit = req.DailyLimit
+	account.TotalLimit = req.TotalLimit
 	account.EnableProxy = req.EnableProxy
 	account.ProxyURI = req.ProxyURI
 	account.ModelMapping = req.ModelMapping
@@ -267,6 +271,7 @@ func (s *AccountService) UpdateAccountStatus(account *model.Account, statusCode 
 					account.TodayCacheReadInputTokens += usage.CacheReadInputTokens
 					account.TodayCacheCreationInputTokens += usage.CacheCreationInputTokens
 					account.TodayTotalCost += currentCost
+					account.TotalCost += currentCost
 				} else {
 					// 不同天，重置各类tokens和费用
 					account.TodayInputTokens = usage.InputTokens
@@ -274,6 +279,7 @@ func (s *AccountService) UpdateAccountStatus(account *model.Account, statusCode 
 					account.TodayCacheReadInputTokens = usage.CacheReadInputTokens
 					account.TodayCacheCreationInputTokens = usage.CacheCreationInputTokens
 					account.TodayTotalCost = currentCost
+					account.TotalCost += currentCost
 				}
 			} else {
 				// 首次使用，设置各类tokens和费用
@@ -282,6 +288,7 @@ func (s *AccountService) UpdateAccountStatus(account *model.Account, statusCode 
 				account.TodayCacheReadInputTokens = usage.CacheReadInputTokens
 				account.TodayCacheCreationInputTokens = usage.CacheCreationInputTokens
 				account.TodayTotalCost = currentCost
+				account.TotalCost += currentCost
 			}
 		}
 

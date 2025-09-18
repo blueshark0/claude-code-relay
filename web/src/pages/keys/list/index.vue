@@ -134,10 +134,19 @@
         </t-form-item>
 
         <t-form-item label="过期时间" name="expires_at">
+          <!-- 快捷有效期按钮 -->
+          <div class="preset-buttons">
+            <t-button size="small" variant="outline" @click="setPresetExpiration(1)">1天后</t-button>
+            <t-button size="small" variant="outline" @click="setPresetExpiration(3)">3天后</t-button>
+            <t-button size="small" variant="outline" @click="setPresetExpiration(7)">7天后</t-button>
+          </div>
           <t-date-picker
             v-model="formData.expires_at"
             format="YYYY-MM-DD HH:mm:ss"
             :disable-date="disableDate"
+            :enable-time-picker="true"
+            :need-confirm="true"
+            default-time="23:59:59"
             clearable
             placeholder="留空表示永不过期"
             style="width: 100%"
@@ -198,6 +207,7 @@
   </div>
 </template>
 <script setup lang="ts">
+import dayjs from 'dayjs';
 import { SearchIcon } from 'tdesign-icons-vue-next';
 import type { FormInstanceFunctions, PrimaryTableCol, TableRowData } from 'tdesign-vue-next';
 import { MessagePlugin } from 'tdesign-vue-next';
@@ -397,7 +407,7 @@ const handleSelectChange = (value: (string | number)[]) => {
 };
 
 // 工具函数
-const maskApiKey = (key: string): string => {
+const _maskApiKey = (key: string): string => {
   if (!key) return '';
   if (key.length <= 8) return key;
   return `${key.substring(0, 8)}${'*'.repeat(Math.min(key.length - 8, 20))}`;
@@ -412,7 +422,7 @@ const copyToClipboard = async (text: string) => {
   }
 };
 
-const formatNumber = (num: number): string => {
+const _formatNumber = (num: number): string => {
   if (num < 1000) return num.toString();
   if (num < 1000000) return `${(num / 1000).toFixed(1)}K`;
   return `${(num / 1000000).toFixed(1)}M`;
@@ -425,6 +435,12 @@ const formatDateTime = (dateStr: string): string => {
 
 const disableDate = (date: Date): boolean => {
   return date < new Date();
+};
+
+// 设置快捷有效期
+const setPresetExpiration = (days: number) => {
+  const expirationDate = dayjs().add(days, 'day').endOf('day').format('YYYY-MM-DD HH:mm:ss');
+  formData.expires_at = expirationDate;
 };
 
 // 获取分组选项
@@ -626,5 +642,11 @@ onMounted(() => {
   flex-direction: column;
   align-items: flex-start;
   gap: 4px;
+}
+
+.preset-buttons {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 8px;
 }
 </style>

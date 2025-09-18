@@ -112,6 +112,9 @@ func UpdateApiKey(id, userID uint, req *model.UpdateApiKeyRequest) (*model.ApiKe
 		return nil, err
 	}
 
+	// 清除缓存，确保配置变更立即生效
+	model.ClearApiKeyCache(apiKey.Key)
+
 	return apiKey, nil
 }
 
@@ -266,4 +269,7 @@ func UpdateApiKeyStatus(apiKey *model.ApiKey, statusCode int, usage *common.Toke
 	if err := model.UpdateApiKey(freshApiKey); err != nil {
 		log.Printf("failed to update api key status: %v", err)
 	}
+
+	// 清除缓存，确保限额检查使用最新数据
+	model.ClearApiKeyCache(freshApiKey.Key)
 }

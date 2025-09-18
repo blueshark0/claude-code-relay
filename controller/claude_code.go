@@ -133,6 +133,9 @@ func prepareRequestContext(c *gin.Context) (*RequestContext, bool) {
 	// 根据模型权限过滤账号
 	filteredAccounts := filterAccountsByModelPermission(accounts, keyInfo, modelName)
 
+	// 根据限额过滤账号
+	filteredAccounts = filterAccountsByLimit(filteredAccounts)
+
 	if len(filteredAccounts) == 0 {
 		if len(accounts) == 0 {
 			c.JSON(http.StatusForbidden, gin.H{
@@ -334,6 +337,23 @@ func filterAccountsByModelPermission(accounts []model.Account, apiKey *model.Api
 	}
 
 	return filteredAccounts
+}
+
+// filterAccountsByLimit 根据账号限额过滤账号列表
+func filterAccountsByLimit(accounts []model.Account) []model.Account {
+	var result []model.Account
+	for _, account := range accounts {
+		// 检查每日限额
+		if account.DailyLimit > 0 && account.TodayTotalCost >= account.DailyLimit {
+			continue
+		}
+		// 检查总限额
+		if account.TotalLimit > 0 && account.TotalCost >= account.TotalLimit {
+			continue
+		}
+		result = append(result, account)
+	}
+	return result
 }
 
 // GetCountTokens 获取token计数数据

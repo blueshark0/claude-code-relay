@@ -35,6 +35,9 @@ export interface Account {
   today_cache_read_input_tokens: number;
   today_cache_creation_input_tokens: number;
   today_total_cost: number;
+  daily_limit: number;
+  total_limit: number;
+  total_cost: number;
   enable_proxy: boolean;
   proxy_uri: string;
   model_mapping: string;
@@ -68,6 +71,8 @@ export interface AccountCreateParams {
   group_id?: number;
   priority?: number;
   weight?: number;
+  daily_limit?: number;
+  total_limit?: number;
   enable_proxy?: boolean;
   proxy_uri?: string;
   model_mapping?: string;
@@ -89,6 +94,8 @@ export interface AccountUpdateParams {
   group_id?: number;
   priority?: number;
   weight?: number;
+  daily_limit?: number;
+  total_limit?: number;
   enable_proxy?: boolean;
   proxy_uri?: string;
   model_mapping?: string;
