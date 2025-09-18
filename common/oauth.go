@@ -284,10 +284,10 @@ func (o *OAuthHelper) ExchangeCodeForTokens(authorizationCode, codeVerifier, sta
 		req.Header.Set(key, value)
 	}
 
-	// 记录请求信息
+	// 记录请求信息（不包含敏感数据）
 	cleanedCode := o.CleanAuthorizationCode(authorizationCode)
-	SysLog(fmt.Sprintf("Attempting OAuth token exchange - URL: %s, Code length: %d, Code prefix: %s..., Has proxy: %t",
-		o.config.TokenURL, len(cleanedCode), cleanedCode[:min(10, len(cleanedCode))], proxyURI != ""))
+	SysLog(fmt.Sprintf("Attempting OAuth token exchange - URL: %s, Code length: %d, Has proxy: %t",
+		o.config.TokenURL, len(cleanedCode), proxyURI != ""))
 
 	// 发送请求
 	resp, err := client.Do(req)
@@ -328,8 +328,12 @@ func (o *OAuthHelper) ExchangeCodeForTokens(authorizationCode, codeVerifier, sta
 		return nil, fmt.Errorf("failed to parse token response: %w", err)
 	}
 
-	// 打印 json 字符串格式的响应
-	SysLog(fmt.Sprintf("OAuth token exchange response: %s", string(body)))
+	// 记录响应结果（不记录敏感数据）
+	if os.Getenv("LOG_SENSITIVE_DATA") == "true" {
+		SysLog(fmt.Sprintf("OAuth token exchange response: %s", string(body)))
+	} else {
+		SysLog("OAuth token exchange completed successfully")
+	}
 
 	// 提取token信息
 	accessToken, ok := tokenResp["access_token"].(string)
