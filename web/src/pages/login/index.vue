@@ -6,7 +6,7 @@
       <div class="title-container">
         <h1 class="title margin-no">{{ t('pages.login.loginTitle') }}</h1>
         <h1 class="title">Claude Code Relay</h1>
-        <div class="sub-title" v-if="registrationEnabled">
+        <div v-if="registrationEnabled" class="sub-title">
           <p class="tip">{{ type === 'register' ? t('pages.login.existAccount') : t('pages.login.noAccount') }}</p>
           <p class="tip" @click="switchType(type === 'register' ? 'login' : 'register')">
             {{ type === 'register' ? t('pages.login.signIn') : t('pages.login.createAccount') }}
@@ -21,11 +21,11 @@
   </div>
 </template>
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
+import { onMounted, ref } from 'vue';
 
+import { getSystemStatus } from '@/api/system';
 import TdesignSetting from '@/layouts/setting.vue';
 import { t } from '@/locales';
-import { getSystemStatus } from '@/api/system';
 
 import LoginHeader from './components/Header.vue';
 import Login from './components/Login.vue';

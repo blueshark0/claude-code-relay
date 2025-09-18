@@ -40,6 +40,54 @@
             <t-tag v-if="statsData.api_key_info.status === 1" theme="success" variant="light"> 启用 </t-tag>
             <t-tag v-else theme="danger" variant="light"> 禁用 </t-tag>
           </div>
+          <div class="info-item">
+            <span class="label">每日限额：</span>
+            <span class="value">
+              <t-tag v-if="statsData.api_key_info.daily_limit > 0" theme="default" variant="light">
+                ${{ statsData.api_key_info.daily_limit }}
+              </t-tag>
+              <t-tag v-else theme="default" variant="light">无限制</t-tag>
+            </span>
+          </div>
+          <div class="info-item">
+            <span class="label">总限额：</span>
+            <span class="value">
+              <t-tag v-if="statsData.api_key_info.total_limit > 0" theme="primary" variant="light">
+                ${{ statsData.api_key_info.total_limit }}
+              </t-tag>
+              <t-tag v-else theme="default" variant="light">无限制</t-tag>
+            </span>
+          </div>
+          <div v-if="statsData.api_key_info.total_limit > 0" class="info-item info-item-full">
+            <span class="label">累计使用：</span>
+            <div class="usage-progress">
+              <div class="usage-text">
+                ${{ statsData.api_key_info.total_cost.toFixed(4) }} / ${{ statsData.api_key_info.total_limit }} ({{
+                  getUsagePercentage(statsData.api_key_info.total_cost, statsData.api_key_info.total_limit)
+                }}%)
+              </div>
+              <t-progress
+                :percentage="
+                  Math.min((statsData.api_key_info.total_cost / statsData.api_key_info.total_limit) * 100, 100)
+                "
+                :status="getUsageStatus(statsData.api_key_info.total_cost, statsData.api_key_info.total_limit)"
+                theme="line"
+                size="medium"
+              />
+            </div>
+          </div>
+          <div class="info-item">
+            <span class="label">截止日期：</span>
+            <span class="value">
+              <span v-if="!statsData.api_key_info.expires_at" class="expires-never">永不过期</span>
+              <div v-else class="expires-info">
+                <div class="expires-date">{{ formatDateTime(statsData.api_key_info.expires_at) }}</div>
+                <t-tag theme="default" variant="light" size="small">
+                  {{ getExpirationText(statsData.api_key_info.expires_at) }}
+                </t-tag>
+              </div>
+            </span>
+          </div>
         </div>
       </t-card>
 
@@ -396,8 +444,51 @@ function formatDuration(duration: number): string {
 function formatDateTime(dateStr: string): string {
   if (!dateStr) return '-';
   const date = new Date(dateStr);
-  if (isNaN(date.getTime())) return '-';
+  if (Number.isNaN(date.getTime())) return '-';
   return date.toLocaleString('zh-CN');
+}
+
+// 获取使用量百分比
+function getUsagePercentage(totalCost: number, totalLimit: number): string {
+  if (totalLimit <= 0) return '0';
+  return Math.min((totalCost / totalLimit) * 100, 100).toFixed(1);
+}
+
+// 获取使用量状态
+function getUsageStatus(totalCost: number, totalLimit: number) {
+  if (totalLimit <= 0) return 'active';
+
+  const percentage = (totalCost / totalLimit) * 100;
+
+  if (percentage >= 95) return 'error';
+  if (percentage >= 80) return 'warning';
+  return 'success';
+}
+
+// 获取过期状态主题
+function getExpirationTheme(expiresAt: string): string {
+  const expireDate = new Date(expiresAt);
+  const now = new Date();
+  const diffDays = Math.ceil((expireDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+
+  if (diffDays < 0) return 'danger'; // 已过期
+  if (diffDays <= 7) return 'warning'; // 7天内过期
+  if (diffDays <= 30) return 'default'; // 30天内过期
+  return 'success'; // 正常
+}
+
+// 获取过期文本
+function getExpirationText(expiresAt: string): string {
+  const expireDate = new Date(expiresAt);
+  const now = new Date();
+  const diffDays = Math.ceil((expireDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+
+  if (diffDays < 0) return '已过期';
+  if (diffDays === 0) return '今日过期';
+  if (diffDays === 1) return '明日过期';
+  if (diffDays <= 7) return `${diffDays}天后过期`;
+  if (diffDays <= 30) return `${diffDays}天后过期`;
+  return `${diffDays}天后过期`;
 }
 
 // 组件销毁时清理图表
@@ -451,17 +542,53 @@ onUnmounted(() => {
       margin-bottom: 16px;
 
       .api-key-info {
-        display: flex;
-        gap: 24px;
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 20px;
 
         .info-item {
+          display: flex;
+          flex-direction: column;
+          gap: 8px;
+
+          &.info-item-full {
+            grid-column: 1 / -1;
+          }
+
           .label {
             color: var(--td-text-color-secondary);
+            font-size: 14px;
+            font-weight: 500;
           }
 
           .value {
             font-weight: 500;
             color: var(--td-text-color-primary);
+          }
+
+          .usage-progress {
+            .usage-text {
+              font-size: 14px;
+              margin-bottom: 8px;
+              color: var(--td-text-color-primary);
+              font-weight: 600;
+            }
+          }
+
+          .expires-never {
+            color: var(--td-text-color-secondary);
+            font-style: italic;
+          }
+
+          .expires-info {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+
+            .expires-date {
+              font-size: 14px;
+              color: var(--td-text-color-primary);
+            }
           }
         }
       }
@@ -551,8 +678,8 @@ onUnmounted(() => {
 
     .stats-section {
       .api-key-info {
-        flex-direction: column;
-        gap: 12px;
+        grid-template-columns: 1fr;
+        gap: 16px;
       }
 
       .overview-stats {

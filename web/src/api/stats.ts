@@ -12,6 +12,10 @@ export interface ApiKeyStatsResponse {
     id: number;
     name: string;
     status: number;
+    total_limit: number;
+    total_cost: number;
+    daily_limit: number;
+    expires_at?: string;
   };
   stats: {
     summary: {

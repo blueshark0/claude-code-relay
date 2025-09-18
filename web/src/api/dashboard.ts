@@ -61,19 +61,19 @@ export interface DashboardStats {
   total_tokens: number; // 总Tokens
   user_count: number; // 用户数量
   api_key_count: number; // API Key数量
-  
+
   // 趋势数据
   trend_data: TrendDataItem[]; // 使用趋势
-  
+
   // 模型使用分布
   model_stats: ModelUsageItem[]; // 模型使用统计
-  
+
   // 账号排名
   account_ranking: AccountRankItem[]; // 账号排名
-  
+
   // API Key排名
   api_key_ranking: ApiKeyRankItem[]; // API Key排名
-  
+
   // 今日vs昨日数据对比
   today_stats: DayStatsItem; // 今日统计
   yesterday_stats: DayStatsItem; // 昨日统计

@@ -410,13 +410,13 @@ onMounted(() => {
   display: flex;
   align-items: center;
   gap: 8px;
-  
+
   .t-icon {
     font-size: 16px;
     color: #faad14;
     flex-shrink: 0;
   }
-  
+
   .tip-text {
     font-size: 13px;
     color: #666;

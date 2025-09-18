@@ -366,9 +366,13 @@ func GetApiKeyInfo(c *gin.Context) {
 		"code": constant.Success,
 		"data": gin.H{
 			"api_key_info": gin.H{
-				"id":     apiKey.ID,
-				"name":   apiKey.Name,
-				"status": apiKey.Status,
+				"id":          apiKey.ID,
+				"name":        apiKey.Name,
+				"status":      apiKey.Status,
+				"total_limit": apiKey.TotalLimit,
+				"total_cost":  apiKey.TotalCost,
+				"daily_limit": apiKey.DailyLimit,
+				"expires_at":  apiKey.ExpiresAt,
 			},
 			"stats": stats,
 			"logs": gin.H{

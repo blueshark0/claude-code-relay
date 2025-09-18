@@ -5,7 +5,7 @@ version: '3.8'
 
 services:
   app:
-    image: registry.cn-hangzhou.aliyuncs.com/ripper/claude-code-relay:amd64
+    image: marcosman/claude-code-relay:latest
     container_name: claude-code-relay-app
     restart: unless-stopped
     ports:

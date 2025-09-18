@@ -61,7 +61,7 @@ services:
       - no-new-privileges:true
 
   app:
-    image: registry.cn-hangzhou.aliyuncs.com/ripper/claude-code-relay:latest
+    image: marcosman/claude-code-relay:latest
     container_name: claude-code-relay-app
     restart: unless-stopped
     ports:

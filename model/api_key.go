@@ -27,6 +27,8 @@ type ApiKey struct {
 	TodayTotalCost                float64        `json:"today_total_cost" gorm:"default:0;comment:今日使用总费用(USD)"`
 	ModelRestriction              string         `json:"model_restriction" gorm:"type:text;comment:模型限制,逗号分隔"`
 	DailyLimit                    float64        `json:"daily_limit" gorm:"default:0;comment:日限额(美元),0表示不限制"`
+	TotalLimit                    float64        `json:"total_limit" gorm:"default:0;comment:总限额(美元),0表示不限制"`
+	TotalCost                     float64        `json:"total_cost" gorm:"default:0;comment:累计总费用(USD)"`
 	LastUsedTime                  *Time          `json:"last_used_time" gorm:"comment:最后使用时间;type:datetime"`
 	CreatedAt                     Time           `json:"created_at" gorm:"type:datetime;default:CURRENT_TIMESTAMP"`
 	UpdatedAt                     Time           `json:"updated_at" gorm:"type:datetime;default:CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP"`
@@ -47,6 +49,7 @@ type CreateApiKeyRequest struct {
 	GroupID          int     `json:"group_id"`
 	ModelRestriction string  `json:"model_restriction"`
 	DailyLimit       float64 `json:"daily_limit"`
+	TotalLimit       float64 `json:"total_limit"`
 }
 
 type UpdateApiKeyRequest struct {
@@ -56,6 +59,7 @@ type UpdateApiKeyRequest struct {
 	GroupID          *int     `json:"group_id"`
 	ModelRestriction *string  `json:"model_restriction"`
 	DailyLimit       *float64 `json:"daily_limit"`
+	TotalLimit       *float64 `json:"total_limit"`
 }
 
 type ApiKeyListResult struct {

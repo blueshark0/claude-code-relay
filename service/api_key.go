@@ -32,12 +32,15 @@ func CreateApiKey(userID uint, req *model.CreateApiKeyRequest) (*model.ApiKey, e
 	}
 
 	apiKey := &model.ApiKey{
-		Name:      req.Name,
-		Key:       req.Key,
-		ExpiresAt: req.ExpiresAt,
-		Status:    req.Status,
-		GroupID:   req.GroupID,
-		UserID:    userID,
+		Name:             req.Name,
+		Key:              req.Key,
+		ExpiresAt:        req.ExpiresAt,
+		Status:           req.Status,
+		GroupID:          req.GroupID,
+		ModelRestriction: req.ModelRestriction,
+		DailyLimit:       req.DailyLimit,
+		TotalLimit:       req.TotalLimit,
+		UserID:           userID,
 	}
 
 	if apiKey.Status == 0 {
@@ -99,6 +102,9 @@ func UpdateApiKey(id, userID uint, req *model.UpdateApiKeyRequest) (*model.ApiKe
 	}
 	if req.DailyLimit != nil {
 		apiKey.DailyLimit = *req.DailyLimit
+	}
+	if req.TotalLimit != nil {
+		apiKey.TotalLimit = *req.TotalLimit
 	}
 
 	err = model.UpdateApiKey(apiKey)
@@ -247,6 +253,9 @@ func UpdateApiKeyStatus(apiKey *model.ApiKey, statusCode int, usage *common.Toke
 			freshApiKey.TodayCacheCreationInputTokens = usage.CacheCreationInputTokens
 			freshApiKey.TodayTotalCost = currentCost
 		}
+
+		// 累计总费用（总是累加，不重置）
+		freshApiKey.TotalCost += currentCost
 	}
 
 	// 更新最后使用时间

@@ -26,6 +26,8 @@ export interface ApiKey {
   today_total_cost: number;
   model_restriction: string;
   daily_limit: number;
+  total_limit: number;
+  total_cost: number;
   last_used_time?: string;
   created_at: string;
   updated_at: string;
@@ -55,6 +57,7 @@ export interface CreateApiKeyRequest {
   group_id?: number;
   model_restriction?: string;
   daily_limit?: number;
+  total_limit?: number;
 }
 
 // 更新API Key
@@ -65,6 +68,7 @@ export interface UpdateApiKeyRequest {
   group_id?: number;
   model_restriction?: string;
   daily_limit?: number;
+  total_limit?: number;
 }
 
 // 更新API Key状态

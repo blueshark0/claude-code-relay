@@ -54,6 +54,16 @@ func ClaudeCodeAuth() gin.HandlerFunc {
 			return
 		}
 
+		// 判断是否达到总限额
+		if keyInfo.TotalLimit > 0 && keyInfo.TotalCost >= keyInfo.TotalLimit {
+			c.JSON(http.StatusTooManyRequests, gin.H{
+				"error": "API Key已达到总使用限额",
+				"code":  40006,
+			})
+			c.Abort()
+			return
+		}
+
 		// 检查分组是否被禁用
 		if keyInfo.GroupID > 0 {
 			status := model.GetGroupStatus(keyInfo.GroupID)

@@ -78,11 +78,11 @@ const expanded = ref<MenuValue[]>([]);
 // 获取所有菜单路径用于全部展开
 const getAllMenuPaths = (menuList: MenuRoute[], basePath = ''): string[] => {
   const paths: string[] = [];
-  menuList.forEach(item => {
+  menuList.forEach((item) => {
     const fullPath = basePath + item.path;
     paths.push(fullPath);
     if (item.children && item.children.length > 0) {
-      paths.push(...getAllMenuPaths(item.children, fullPath + '/'));
+      paths.push(...getAllMenuPaths(item.children, `${fullPath}/`));
     }
   });
   return paths;

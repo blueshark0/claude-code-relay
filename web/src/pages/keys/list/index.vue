@@ -56,6 +56,24 @@
           <t-tag theme="default" variant="light"> ${{ row.daily_limit }} </t-tag>
         </template>
 
+        <template #total_limit="{ row }">
+          <t-tag theme="primary" variant="light"> ${{ row.total_limit }} </t-tag>
+        </template>
+
+        <template #total_cost="{ row }">
+          <span class="total-cost">
+            ${{ (row.total_cost || 0).toFixed(4) }}
+            <t-progress
+              v-if="row.total_limit > 0"
+              :percentage="Math.min((row.total_cost / row.total_limit) * 100, 100)"
+              :status="getUsageStatus(row.total_cost, row.total_limit)"
+              theme="line"
+              size="small"
+              style="margin-top: 4px; width: 60px"
+            />
+          </span>
+        </template>
+
         <template #model_restriction="{ row }">
           <t-tag v-if="row.model_restriction" theme="default" variant="light"> 限制 </t-tag>
           <span v-else class="text-placeholder">不限制 </span>
@@ -154,6 +172,17 @@
             style="width: 100%"
           />
         </t-form-item>
+
+        <t-form-item label="总限额(美元)" name="total_limit">
+          <t-input-number
+            v-model="formData.total_limit"
+            :min="0"
+            :step="0.01"
+            placeholder="0表示不限制"
+            style="width: 100%"
+          />
+          <template #help> 累计使用金额上限，不会重置 </template>
+        </t-form-item>
       </t-form>
     </t-dialog>
 
@@ -240,6 +269,16 @@ const COLUMNS: PrimaryTableCol<TableRowData>[] = [
     width: 120,
   },
   {
+    title: '总限额',
+    colKey: 'total_limit',
+    width: 120,
+  },
+  {
+    title: '累计费用',
+    colKey: 'total_cost',
+    width: 160,
+  },
+  {
     title: '限制模型',
     colKey: 'model_restriction',
     width: 100,
@@ -291,6 +330,7 @@ const formData = reactive<CreateApiKeyRequest & UpdateApiKeyRequest>({
   group_id: 0,
   model_restriction: '',
   daily_limit: 0,
+  total_limit: 0,
 });
 
 // 删除相关
@@ -412,6 +452,7 @@ const handleCreate = async () => {
     group_id: 0,
     model_restriction: '',
     daily_limit: 0,
+    total_limit: 0,
   });
   await fetchGroupOptions(); // 加载分组选项
   formVisible.value = true;
@@ -427,6 +468,7 @@ const handleEdit = async (item: ApiKey) => {
     group_id: item.group_id,
     model_restriction: item.model_restriction || '',
     daily_limit: item.daily_limit,
+    total_limit: item.total_limit,
   });
   await fetchGroupOptions(); // 加载分组选项
   formVisible.value = true;
@@ -446,6 +488,7 @@ const handleFormConfirm = async () => {
         group_id: formData.group_id,
         model_restriction: formData.model_restriction,
         daily_limit: formData.daily_limit,
+        total_limit: formData.total_limit,
       };
       await updateApiKey(editingItem.value.id, updateData);
       MessagePlugin.success('更新成功');
@@ -459,6 +502,7 @@ const handleFormConfirm = async () => {
         group_id: formData.group_id,
         model_restriction: formData.model_restriction,
         daily_limit: formData.daily_limit,
+        total_limit: formData.total_limit,
       };
       await createApiKey(createData);
       MessagePlugin.success('创建成功');
@@ -509,6 +553,17 @@ const handleDeleteConfirm = async () => {
 
 const handleDeleteCancel = () => {
   deleteVisible.value = false;
+};
+
+// 获取使用量状态
+const getUsageStatus = (totalCost: number, totalLimit: number) => {
+  if (totalLimit <= 0) return 'active';
+
+  const percentage = (totalCost / totalLimit) * 100;
+
+  if (percentage >= 95) return 'error';
+  if (percentage >= 80) return 'warning';
+  return 'success';
 };
 
 // 生命周期
@@ -564,5 +619,12 @@ onMounted(() => {
 
 .text-placeholder {
   color: var(--td-text-color-placeholder);
+}
+
+.total-cost {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
 }
 </style>

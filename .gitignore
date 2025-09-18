@@ -16,3 +16,4 @@ redis_data
 app_logs
 /logs/
 AGENTS.md
+/docs/
