@@ -37,6 +37,9 @@ func main() {
 	// 设置日志
 	common.SetupLogger()
 	common.SysLog("Claude Code Relay started")
+	
+	// 记录安全警告
+	common.LogSecurityWarnings()
 
 	// 设置Gin模式
 	if os.Getenv("GIN_MODE") != "debug" {
