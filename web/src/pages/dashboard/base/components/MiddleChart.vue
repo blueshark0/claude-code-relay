@@ -182,7 +182,7 @@ onDeactivated(() => {
   storeSidebarCompactWatch();
 });
 
-const currentMonth = ref(getThisMonth());
+const _currentMonth = ref(getThisMonth());
 
 const storeBrandThemeWatch = watch(
   () => store.brandTheme,

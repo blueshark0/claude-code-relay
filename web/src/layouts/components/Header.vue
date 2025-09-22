@@ -107,7 +107,7 @@ const user = useUserStore();
 // 用户个人中心弹层状态
 const userProfileVisible = ref(false);
 
-const toggleSettingPanel = () => {
+const _toggleSettingPanel = () => {
   settingStore.updateConfig({
     showSettingPanel: true,
   });
@@ -131,7 +131,7 @@ const menuTheme = computed(() => theme as ModeType);
 
 // 切换语言
 const { changeLocale } = useLocale();
-const changeLang = (lang: string) => {
+const _changeLang = (lang: string) => {
   changeLocale(lang);
 };
 

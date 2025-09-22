@@ -117,7 +117,7 @@
 <script setup lang="ts">
 import * as echarts from 'echarts';
 import { MessagePlugin } from 'tdesign-vue-next';
-import { nextTick, onMounted, onUnmounted, reactive, ref, watch } from 'vue';
+import { nextTick, onMounted, onUnmounted, reactive, ref } from 'vue';
 
 import type { StatsQueryParams, StatsResponse } from '@/api/logs';
 import { getMyUsageStats } from '@/api/logs';
@@ -279,7 +279,9 @@ const initCostChart = () => {
   const option = {
     tooltip: {
       trigger: 'item',
-      formatter: '{a} <br/>{b}: ${c} ({d}%)',
+      formatter(params: any) {
+        return `${params.seriesName} <br/>${params.name}: $${params.value} (${params.percent}%)`;
+      },
     },
     series: [
       {

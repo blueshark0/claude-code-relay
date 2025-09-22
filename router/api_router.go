@@ -85,6 +85,11 @@ func SetAPIRouter(server *gin.Engine, embeddedFS embed.FS, staticFileSystem http
 				account.PUT("/update-active-status/:id", controller.UpdateAccountActiveStatus)   // 更新账号激活状态
 				account.PUT("/update-current-status/:id", controller.UpdateAccountCurrentStatus) // 更新账号当前状态
 				account.POST("/test/:id", controller.TestGetMessages)                            // 测试账号连通性
+
+				// RPM/TPM 统计相关
+				account.GET("/:id/rpm-tpm/stats", controller.GetAccountRpmTpmStats)      // 获取Account RPM/TPM统计
+				account.PUT("/:id/rpm-tpm/limits", controller.UpdateAccountRpmTpmLimits) // 更新Account RPM/TPM限制
+				account.GET("/:id/rpm-tpm/history", controller.GetAccountRpmTpmHistory)  // 获取Account RPM/TPM历史
 			}
 
 			// Claude OAuth 相关
@@ -103,6 +108,11 @@ func SetAPIRouter(server *gin.Engine, embeddedFS embed.FS, staticFileSystem http
 				apikey.PUT("/update/:id", controller.UpdateApiKey)              // 更新API Key
 				apikey.PUT("/update-status/:id", controller.UpdateApiKeyStatus) // 更新API Key状态
 				apikey.DELETE("/delete/:id", controller.DeleteApiKey)           // 删除API Key
+
+				// RPM/TPM 统计相关
+				apikey.GET("/:id/rpm-tpm/stats", controller.GetApiKeyRpmTpmStats)      // 获取API Key RPM/TPM统计
+				apikey.PUT("/:id/rpm-tpm/limits", controller.UpdateApiKeyRpmTpmLimits) // 更新API Key RPM/TPM限制
+				apikey.GET("/:id/rpm-tpm/history", controller.GetApiKeyRpmTpmHistory)  // 获取API Key RPM/TPM历史
 			}
 
 			// 日志相关（用户接口）
@@ -116,6 +126,9 @@ func SetAPIRouter(server *gin.Engine, embeddedFS embed.FS, staticFileSystem http
 
 			// 仪表盘数据接口
 			authenticated.GET("/dashboard/stats", controller.GetDashboardStats) // 获取仪表盘统计数据
+
+			// RPM/TPM 仪表盘
+			authenticated.GET("/rpm-tpm/dashboard", controller.GetRpmTpmDashboard) // 获取RPM/TPM仪表盘数据
 
 			// 管理员接口
 			admin := authenticated.Group("/admin")

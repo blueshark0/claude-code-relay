@@ -28,6 +28,14 @@ type Account struct {
 	DailyLimit                    float64        `json:"daily_limit" gorm:"default:0;comment:每日限额(美元),0表示不限制"`
 	TotalLimit                    float64        `json:"total_limit" gorm:"default:0;comment:总限额(美元),0表示不限制"`
 	TotalCost                     float64        `json:"total_cost" gorm:"default:0;comment:累计总费用(USD)"`
+	CurrentRpm                    int            `json:"current_rpm" gorm:"default:0;comment:当前RPM(每分钟请求数)"`
+	CurrentTpm                    int            `json:"current_tpm" gorm:"default:0;comment:当前TPM(每分钟Token数)"`
+	MaxRpm                        int            `json:"max_rpm" gorm:"default:0;comment:历史最大RPM"`
+	MaxTpm                        int            `json:"max_tpm" gorm:"default:0;comment:历史最大TPM"`
+	RpmLimit                      int            `json:"rpm_limit" gorm:"default:0;comment:RPM限制(0=无限制)"`
+	TpmLimit                      int            `json:"tpm_limit" gorm:"default:0;comment:TPM限制(0=无限制)"`
+	RpmWarningThreshold           int            `json:"rpm_warning_threshold" gorm:"default:0;comment:RPM告警阈值"`
+	TpmWarningThreshold           int            `json:"tpm_warning_threshold" gorm:"default:0;comment:TPM告警阈值"`
 	EnableProxy                   bool           `json:"enable_proxy" gorm:"default:false;comment:是否启用代理"`
 	ProxyURI                      string         `json:"proxy_uri" gorm:"type:varchar(500);comment:代理URI字符串"`
 	ModelMapping                  string         `json:"model_mapping" gorm:"type:text;comment:模型映射配置(格式:claude-model:openai-model,多个用逗号分隔)"`
@@ -67,47 +75,55 @@ type AccountListResponse struct {
 
 // 账号创建请求参数
 type CreateAccountRequest struct {
-	Name             string  `json:"name" binding:"required,min=1,max=100"`
-	PlatformType     string  `json:"platform_type" binding:"required,oneof=claude claude_console gemini openai"`
-	RequestURL       string  `json:"request_url"`
-	SecretKey        string  `json:"secret_key"`
-	GroupID          int     `json:"group_id"`
-	Priority         int     `json:"priority"`
-	Weight           int     `json:"weight" binding:"min=1"`
-	DailyLimit       float64 `json:"daily_limit" binding:"min=0"`
-	TotalLimit       float64 `json:"total_limit" binding:"min=0"`
-	EnableProxy      bool    `json:"enable_proxy"`
-	ProxyURI         string  `json:"proxy_uri"`
-	ModelMapping     string  `json:"model_mapping"`
-	ModelRestriction string  `json:"model_restriction"`
-	ActiveStatus     int     `json:"active_status" binding:"oneof=1 2"`
-	IsMax            bool    `json:"is_max"` // 是否是max账号
-	AccessToken      string  `json:"access_token"`
-	RefreshToken     string  `json:"refresh_token"`
-	ExpiresAt        int     `json:"expires_at" binding:"min=0"`
-	TodayUsageCount  int     `json:"today_usage_count"` // 今日使用次数
+	Name                string  `json:"name" binding:"required,min=1,max=100"`
+	PlatformType        string  `json:"platform_type" binding:"required,oneof=claude claude_console gemini openai"`
+	RequestURL          string  `json:"request_url"`
+	SecretKey           string  `json:"secret_key"`
+	GroupID             int     `json:"group_id"`
+	Priority            int     `json:"priority"`
+	Weight              int     `json:"weight" binding:"min=1"`
+	DailyLimit          float64 `json:"daily_limit" binding:"min=0"`
+	TotalLimit          float64 `json:"total_limit" binding:"min=0"`
+	RpmLimit            int     `json:"rpm_limit"`
+	TpmLimit            int     `json:"tpm_limit"`
+	RpmWarningThreshold int     `json:"rpm_warning_threshold"`
+	TpmWarningThreshold int     `json:"tpm_warning_threshold"`
+	EnableProxy         bool    `json:"enable_proxy"`
+	ProxyURI            string  `json:"proxy_uri"`
+	ModelMapping        string  `json:"model_mapping"`
+	ModelRestriction    string  `json:"model_restriction"`
+	ActiveStatus        int     `json:"active_status" binding:"oneof=1 2"`
+	IsMax               bool    `json:"is_max"` // 是否是max账号
+	AccessToken         string  `json:"access_token"`
+	RefreshToken        string  `json:"refresh_token"`
+	ExpiresAt           int     `json:"expires_at" binding:"min=0"`
+	TodayUsageCount     int     `json:"today_usage_count"` // 今日使用次数
 }
 
 // 账号更新请求参数
 type UpdateAccountRequest struct {
-	Name             string  `json:"name" binding:"required,min=1,max=100"`
-	PlatformType     string  `json:"platform_type" binding:"required,oneof=claude claude_console openai gemini"`
-	RequestURL       string  `json:"request_url"`
-	SecretKey        string  `json:"secret_key"`
-	GroupID          *int    `json:"group_id" binding:"omitempty,min=0"`
-	Priority         int     `json:"priority" binding:"min=1"`
-	Weight           int     `json:"weight" binding:"min=1"`
-	DailyLimit       float64 `json:"daily_limit" binding:"min=0"`
-	TotalLimit       float64 `json:"total_limit" binding:"min=0"`
-	EnableProxy      bool    `json:"enable_proxy"`
-	ProxyURI         string  `json:"proxy_uri"`
-	ModelMapping     string  `json:"model_mapping"`
-	ModelRestriction string  `json:"model_restriction"`
-	ActiveStatus     int     `json:"active_status" binding:"oneof=1 2"`
-	IsMax            bool    `json:"is_max"` // 是否是max账号
-	AccessToken      string  `json:"access_token"`
-	RefreshToken     string  `json:"refresh_token"`
-	TodayUsageCount  int     `json:"today_usage_count"` // 今日使用次数
+	Name                string  `json:"name" binding:"required,min=1,max=100"`
+	PlatformType        string  `json:"platform_type" binding:"required,oneof=claude claude_console openai gemini"`
+	RequestURL          string  `json:"request_url"`
+	SecretKey           string  `json:"secret_key"`
+	GroupID             *int    `json:"group_id" binding:"omitempty,min=0"`
+	Priority            int     `json:"priority" binding:"min=1"`
+	Weight              int     `json:"weight" binding:"min=1"`
+	DailyLimit          float64 `json:"daily_limit" binding:"min=0"`
+	TotalLimit          float64 `json:"total_limit" binding:"min=0"`
+	RpmLimit            int     `json:"rpm_limit"`
+	TpmLimit            int     `json:"tpm_limit"`
+	RpmWarningThreshold int     `json:"rpm_warning_threshold"`
+	TpmWarningThreshold int     `json:"tpm_warning_threshold"`
+	EnableProxy         bool    `json:"enable_proxy"`
+	ProxyURI            string  `json:"proxy_uri"`
+	ModelMapping        string  `json:"model_mapping"`
+	ModelRestriction    string  `json:"model_restriction"`
+	ActiveStatus        int     `json:"active_status" binding:"oneof=1 2"`
+	IsMax               bool    `json:"is_max"` // 是否是max账号
+	AccessToken         string  `json:"access_token"`
+	RefreshToken        string  `json:"refresh_token"`
+	TodayUsageCount     int     `json:"today_usage_count"` // 今日使用次数
 }
 
 // 账号激活状态更新请求参数
@@ -326,4 +342,65 @@ func setWeeklyStatsForAccounts(accounts []Account) error {
 	}
 
 	return nil
+}
+
+// AccountRpmTpmStats Account RPM/TPM 统计结构
+type AccountRpmTpmStats struct {
+	AccountID           uint    `json:"account_id"`
+	CurrentRpm          int     `json:"current_rpm"`
+	CurrentTpm          int     `json:"current_tpm"`
+	MaxRpm              int     `json:"max_rpm"`
+	MaxTpm              int     `json:"max_tpm"`
+	RpmLimit            int     `json:"rpm_limit"`
+	TpmLimit            int     `json:"tpm_limit"`
+	RpmWarningThreshold int     `json:"rpm_warning_threshold"`
+	TpmWarningThreshold int     `json:"tpm_warning_threshold"`
+	RpmUsagePercentage  float64 `json:"rpm_usage_percentage"`
+	TpmUsagePercentage  float64 `json:"tpm_usage_percentage"`
+	IsRpmLimited        bool    `json:"is_rpm_limited"`
+	IsTpmLimited        bool    `json:"is_tpm_limited"`
+	RateLimitEndTime    *Time   `json:"rate_limit_end_time"`
+}
+
+// AccountRpmTpmHistory Account RPM/TPM 历史数据
+type AccountRpmTpmHistory struct {
+	ID                  uint `json:"id"`
+	AccountID           uint `json:"account_id"`
+	MinuteTimestamp     Time `json:"minute_timestamp"`
+	Rpm                 int  `json:"rpm"`
+	Tpm                 int  `json:"tpm"`
+	InputTokens         int  `json:"input_tokens"`
+	OutputTokens        int  `json:"output_tokens"`
+	CacheReadTokens     int  `json:"cache_read_tokens"`
+	CacheCreationTokens int  `json:"cache_creation_tokens"`
+	CreatedAt           Time `json:"created_at"`
+}
+
+// UpdateAccountRpmTpmLimitsRequest 更新 Account RPM/TPM 限制请求
+type UpdateAccountRpmTpmLimitsRequest struct {
+	RpmLimit            *int `json:"rpm_limit" binding:"omitempty,min=0"`
+	TpmLimit            *int `json:"tpm_limit" binding:"omitempty,min=0"`
+	RpmWarningThreshold *int `json:"rpm_warning_threshold" binding:"omitempty,min=0"`
+	TpmWarningThreshold *int `json:"tpm_warning_threshold" binding:"omitempty,min=0"`
+}
+
+// AccountRpmTpmHistoryRequest 查询 Account RPM/TPM 历史请求
+type AccountRpmTpmHistoryRequest struct {
+	StartTime *Time `json:"start_time" form:"start_time"`
+	EndTime   *Time `json:"end_time" form:"end_time"`
+	Page      int   `json:"page" form:"page" binding:"min=1"`
+	Limit     int   `json:"limit" form:"limit" binding:"min=1,max=100"`
+}
+
+// AccountRpmTpmHistoryResponse 查询 Account RPM/TPM 历史响应
+type AccountRpmTpmHistoryResponse struct {
+	History []AccountRpmTpmHistory `json:"history"`
+	Total   int64                  `json:"total"`
+	Page    int                    `json:"page"`
+	Limit   int                    `json:"limit"`
+}
+
+// TableName 设置 Account RPM/TPM 历史表名
+func (AccountRpmTpmHistory) TableName() string {
+	return "account_rpm_tpm_stats"
 }

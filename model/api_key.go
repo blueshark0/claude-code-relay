@@ -29,6 +29,15 @@ type ApiKey struct {
 	DailyLimit                    float64        `json:"daily_limit" gorm:"default:0;comment:日限额(美元),0表示不限制"`
 	TotalLimit                    float64        `json:"total_limit" gorm:"default:0;comment:总限额(美元),0表示不限制"`
 	TotalCost                     float64        `json:"total_cost" gorm:"default:0;comment:累计总费用(USD)"`
+	CurrentRpm                    int            `json:"current_rpm" gorm:"default:0;comment:当前RPM(每分钟请求数)"`
+	CurrentTpm                    int            `json:"current_tpm" gorm:"default:0;comment:当前TPM(每分钟Token数)"`
+	MaxRpm                        int            `json:"max_rpm" gorm:"default:0;comment:历史最大RPM"`
+	MaxTpm                        int            `json:"max_tpm" gorm:"default:0;comment:历史最大TPM"`
+	RpmLimit                      int            `json:"rpm_limit" gorm:"default:0;comment:RPM限制(0=无限制)"`
+	TpmLimit                      int            `json:"tpm_limit" gorm:"default:0;comment:TPM限制(0=无限制)"`
+	RpmWarningThreshold           int            `json:"rpm_warning_threshold" gorm:"default:0;comment:RPM告警阈值"`
+	TpmWarningThreshold           int            `json:"tpm_warning_threshold" gorm:"default:0;comment:TPM告警阈值"`
+	RateLimitEndTime              *Time          `json:"rate_limit_end_time" gorm:"comment:限流结束时间;type:datetime"`
 	LastUsedTime                  *Time          `json:"last_used_time" gorm:"comment:最后使用时间;type:datetime"`
 	CreatedAt                     Time           `json:"created_at" gorm:"type:datetime;default:CURRENT_TIMESTAMP"`
 	UpdatedAt                     Time           `json:"updated_at" gorm:"type:datetime;default:CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP"`
@@ -42,24 +51,32 @@ type ApiKey struct {
 }
 
 type CreateApiKeyRequest struct {
-	Name             string  `json:"name" binding:"required"`
-	Key              string  `json:"key"`
-	ExpiresAt        *Time   `json:"expires_at"`
-	Status           int     `json:"status" binding:"oneof=1 2"`
-	GroupID          int     `json:"group_id"`
-	ModelRestriction string  `json:"model_restriction"`
-	DailyLimit       float64 `json:"daily_limit"`
-	TotalLimit       float64 `json:"total_limit"`
+	Name                string  `json:"name" binding:"required"`
+	Key                 string  `json:"key"`
+	ExpiresAt           *Time   `json:"expires_at"`
+	Status              int     `json:"status" binding:"oneof=1 2"`
+	GroupID             int     `json:"group_id"`
+	ModelRestriction    string  `json:"model_restriction"`
+	DailyLimit          float64 `json:"daily_limit"`
+	TotalLimit          float64 `json:"total_limit"`
+	RpmLimit            int     `json:"rpm_limit"`
+	TpmLimit            int     `json:"tpm_limit"`
+	RpmWarningThreshold int     `json:"rpm_warning_threshold"`
+	TpmWarningThreshold int     `json:"tpm_warning_threshold"`
 }
 
 type UpdateApiKeyRequest struct {
-	Name             string   `json:"name"`
-	ExpiresAt        *Time    `json:"expires_at"`
-	Status           *int     `json:"status"`
-	GroupID          *int     `json:"group_id"`
-	ModelRestriction *string  `json:"model_restriction"`
-	DailyLimit       *float64 `json:"daily_limit"`
-	TotalLimit       *float64 `json:"total_limit"`
+	Name                *string  `json:"name"`
+	ExpiresAt           *Time    `json:"expires_at"`
+	Status              *int     `json:"status"`
+	GroupID             *int     `json:"group_id"`
+	ModelRestriction    *string  `json:"model_restriction"`
+	DailyLimit          *float64 `json:"daily_limit"`
+	TotalLimit          *float64 `json:"total_limit"`
+	RpmLimit            *int     `json:"rpm_limit"`
+	TpmLimit            *int     `json:"tpm_limit"`
+	RpmWarningThreshold *int     `json:"rpm_warning_threshold"`
+	TpmWarningThreshold *int     `json:"tpm_warning_threshold"`
 }
 
 type ApiKeyListResult struct {
@@ -325,4 +342,65 @@ func setWeeklyStatsForApiKeys(apiKeys []ApiKey) error {
 	}
 
 	return nil
+}
+
+// ApiKeyRpmTpmStats API Key RPM/TPM 统计结构
+type ApiKeyRpmTpmStats struct {
+	ApiKeyID            uint    `json:"api_key_id"`
+	CurrentRpm          int     `json:"current_rpm"`
+	CurrentTpm          int     `json:"current_tpm"`
+	MaxRpm              int     `json:"max_rpm"`
+	MaxTpm              int     `json:"max_tpm"`
+	RpmLimit            int     `json:"rpm_limit"`
+	TpmLimit            int     `json:"tpm_limit"`
+	RpmWarningThreshold int     `json:"rpm_warning_threshold"`
+	TpmWarningThreshold int     `json:"tpm_warning_threshold"`
+	RpmUsagePercentage  float64 `json:"rpm_usage_percentage"`
+	TpmUsagePercentage  float64 `json:"tpm_usage_percentage"`
+	IsRpmLimited        bool    `json:"is_rpm_limited"`
+	IsTpmLimited        bool    `json:"is_tpm_limited"`
+	RateLimitEndTime    *Time   `json:"rate_limit_end_time"`
+}
+
+// ApiKeyRpmTpmHistory API Key RPM/TPM 历史数据
+type ApiKeyRpmTpmHistory struct {
+	ID                  uint `json:"id"`
+	ApiKeyID            uint `json:"api_key_id"`
+	MinuteTimestamp     Time `json:"minute_timestamp"`
+	Rpm                 int  `json:"rpm"`
+	Tpm                 int  `json:"tpm"`
+	InputTokens         int  `json:"input_tokens"`
+	OutputTokens        int  `json:"output_tokens"`
+	CacheReadTokens     int  `json:"cache_read_tokens"`
+	CacheCreationTokens int  `json:"cache_creation_tokens"`
+	CreatedAt           Time `json:"created_at"`
+}
+
+// UpdateApiKeyRpmTpmLimitsRequest 更新 API Key RPM/TPM 限制请求
+type UpdateApiKeyRpmTpmLimitsRequest struct {
+	RpmLimit            *int `json:"rpm_limit" binding:"omitempty,min=0"`
+	TpmLimit            *int `json:"tpm_limit" binding:"omitempty,min=0"`
+	RpmWarningThreshold *int `json:"rpm_warning_threshold" binding:"omitempty,min=0"`
+	TpmWarningThreshold *int `json:"tpm_warning_threshold" binding:"omitempty,min=0"`
+}
+
+// ApiKeyRpmTpmHistoryRequest 查询 API Key RPM/TPM 历史请求
+type ApiKeyRpmTpmHistoryRequest struct {
+	StartTime *Time `json:"start_time" form:"start_time"`
+	EndTime   *Time `json:"end_time" form:"end_time"`
+	Page      int   `json:"page" form:"page" binding:"min=1"`
+	Limit     int   `json:"limit" form:"limit" binding:"min=1,max=100"`
+}
+
+// ApiKeyRpmTpmHistoryResponse 查询 API Key RPM/TPM 历史响应
+type ApiKeyRpmTpmHistoryResponse struct {
+	History []ApiKeyRpmTpmHistory `json:"history"`
+	Total   int64                 `json:"total"`
+	Page    int                   `json:"page"`
+	Limit   int                   `json:"limit"`
+}
+
+// TableName 设置 API Key RPM/TPM 历史表名
+func (ApiKeyRpmTpmHistory) TableName() string {
+	return "api_key_rpm_tpm_stats"
 }

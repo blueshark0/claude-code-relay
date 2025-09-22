@@ -76,7 +76,10 @@ export function constructMiniChart(type: string, trendData: Array<any> = []) {
  *  线性图表数据源（使用真实数据）
  *
  * @export
- * @param {Array} trendData 趋势数据
+ * @param {object} options 配置选项
+ * @param {Array} options.trendData 趋势数据
+ * @param {string} options.placeholderColor 占位符颜色
+ * @param {string} options.borderColor 边框颜色
  * @returns {*} dataSet
  */
 export function getLineChartDataSet({
@@ -138,7 +141,9 @@ export function getLineChartDataSet({
         position: 'left',
         axisLabel: {
           color: placeholderColor,
-          formatter: '${value}',
+          formatter(value: number) {
+            return `$${value}`;
+          },
         },
         splitLine: {
           lineStyle: {
@@ -199,7 +204,11 @@ export function getLineChartDataSet({
  * 获取饼图数据（使用真实模型数据）
  *
  * @export
- * @param {Array} modelStats 模型统计数据
+ * @param {object} options 配置选项
+ * @param {Array} options.modelStats 模型统计数据
+ * @param {string} options.textColor 文字颜色
+ * @param {string} options.placeholderColor 占位符颜色
+ * @param {string} options.containerColor 容器颜色
  * @returns {*} dataSet
  */
 export function getPieChartDataSet({
@@ -219,7 +228,9 @@ export function getPieChartDataSet({
     color: getChartListColor(),
     tooltip: {
       trigger: 'item',
-      formatter: '{a}<br/>{b}: ${c} ({d}%)',
+      formatter(params: any) {
+        return `${params.seriesName}<br/>${params.name}: $${params.value} (${params.percent}%)`;
+      },
     },
     grid: {
       top: '0',

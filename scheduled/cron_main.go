@@ -60,6 +60,9 @@ func (s *CronService) Start() {
 		return
 	}
 
+	// RPM/TPM 统计相关定时任务
+	s.addRpmTpmCronJobs()
+
 	// 启动定时任务
 	s.cron.Start()
 	common.SysLog("Cron service started successfully")
@@ -333,4 +336,73 @@ func (s *CronService) checkRateLimitExpiredAccounts() {
 
 	duration := time.Since(startTime)
 	common.SysLog(fmt.Sprintf("Rate limit expired accounts check task completed in %s. Recovered: %d", duration.String(), recoveredCount))
+}
+
+// addRpmTpmCronJobs 添加RPM/TPM相关定时任务
+func (s *CronService) addRpmTpmCronJobs() {
+	// 每分钟更新数据库中的RPM/TPM统计
+	_, err := s.cron.AddFunc("0 * * * * *", s.updateRpmTpmDatabaseStats)
+	if err != nil {
+		log.Printf("Failed to add RPM/TPM database stats update job: %v", err)
+		return
+	}
+
+	// 每分钟保存历史统计数据
+	_, err = s.cron.AddFunc("30 * * * * *", s.saveRpmTpmHistoryStats)
+	if err != nil {
+		log.Printf("Failed to add RPM/TPM history stats save job: %v", err)
+		return
+	}
+
+	// 每5分钟检查告警阈值
+	_, err = s.cron.AddFunc("0 */5 * * * *", s.checkRpmTpmAlerts)
+	if err != nil {
+		log.Printf("Failed to add RPM/TPM alerts check job: %v", err)
+		return
+	}
+
+	// 每天凌晨3点清理过期的Redis缓存
+	_, err = s.cron.AddFunc("0 0 3 * * *", s.cleanRpmTpmExpiredCache)
+	if err != nil {
+		log.Printf("Failed to add RPM/TPM cache cleanup job: %v", err)
+		return
+	}
+
+	common.SysLog("RPM/TPM cron jobs added successfully")
+}
+
+// updateRpmTpmDatabaseStats 更新数据库中的RPM/TPM统计
+func (s *CronService) updateRpmTpmDatabaseStats() {
+	rpmTpmService := service.NewRpmTpmService()
+	err := rpmTpmService.UpdateDatabaseStats()
+	if err != nil {
+		log.Printf("Failed to update RPM/TPM database stats: %v", err)
+	}
+}
+
+// saveRpmTpmHistoryStats 保存RPM/TPM历史统计数据
+func (s *CronService) saveRpmTpmHistoryStats() {
+	rpmTpmService := service.NewRpmTpmService()
+	err := rpmTpmService.SaveHistoryStats()
+	if err != nil {
+		log.Printf("Failed to save RPM/TPM history stats: %v", err)
+	}
+}
+
+// checkRpmTpmAlerts 检查RPM/TPM告警阈值
+func (s *CronService) checkRpmTpmAlerts() {
+	rpmTpmService := service.NewRpmTpmService()
+	err := rpmTpmService.CheckAlerts()
+	if err != nil {
+		log.Printf("Failed to check RPM/TPM alerts: %v", err)
+	}
+}
+
+// cleanRpmTpmExpiredCache 清理过期的RPM/TPM Redis缓存
+func (s *CronService) cleanRpmTpmExpiredCache() {
+	rpmTpmService := service.NewRpmTpmService()
+	err := rpmTpmService.CleanExpiredCache()
+	if err != nil {
+		log.Printf("Failed to clean RPM/TPM expired cache: %v", err)
+	}
 }

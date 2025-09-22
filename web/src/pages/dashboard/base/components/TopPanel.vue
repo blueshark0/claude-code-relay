@@ -59,7 +59,7 @@ import { computed, nextTick, onMounted, ref, watch } from 'vue';
 import type { DashboardStats } from '@/api/dashboard';
 // 导入样式
 import Trend from '@/components/trend/index.vue';
-import { t } from '@/locales';
+import { t as _ } from '@/locales';
 import { useSettingStore } from '@/store';
 import { changeChartsTheme } from '@/utils/color';
 

@@ -93,7 +93,7 @@ const visible = computed({
 const activeTab = ref('profile');
 
 // 加载状态
-const emailLoading = ref(false);
+const _emailLoading = ref(false);
 const passwordLoading = ref(false);
 
 // 表单引用
@@ -162,7 +162,7 @@ const handleChangePassword = async ({ validateResult }: any) => {
           query: { redirect: encodeURIComponent(router.currentRoute.value.fullPath) },
         });
       }, 1000);
-    } catch (error) {
+    } catch {
       MessagePlugin.error('密码修改失败');
     } finally {
       passwordLoading.value = false;

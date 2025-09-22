@@ -83,17 +83,13 @@
             <div>
               今日: ${{ (row.today_total_cost || 0).toFixed(4) }}
               <span v-if="row.daily_limit > 0">
-                / ${{ row.daily_limit.toFixed(2) }} ({{
-                  ((row.today_total_cost / row.daily_limit) * 100).toFixed(1)
-                }}%)
+                / ${{ row.daily_limit.toFixed(2) }} ({{ ((row.today_total_cost / row.daily_limit) * 100).toFixed(1) }}%)
               </span>
             </div>
             <div style="margin-top: 4px">
               累计: ${{ (row.total_cost || 0).toFixed(4) }}
               <span v-if="row.total_limit > 0">
-                / ${{ row.total_limit.toFixed(2) }} ({{
-                  ((row.total_cost / row.total_limit) * 100).toFixed(1)
-                }}%)
+                / ${{ row.total_limit.toFixed(2) }} ({{ ((row.total_cost / row.total_limit) * 100).toFixed(1) }}%)
               </span>
             </div>
           </div>
@@ -130,6 +126,70 @@
           <span v-else class="text-placeholder">未限流</span>
         </template>
 
+        <template #rpm_status="{ row }">
+          <div v-if="row.rpm_stats" class="rpm-tpm-status-cell">
+            <div class="usage-info">
+              <span class="current-value" :class="{ 'text-danger': row.rpm_stats.is_rpm_limited }">
+                {{ formatRpmTpmValue(row.rpm_stats.current_rpm) }}
+              </span>
+              <span v-if="row.rpm_stats.rpm_limit > 0" class="limit-value">
+                / {{ formatRpmTpmValue(row.rpm_stats.rpm_limit) }}
+              </span>
+              <span v-else class="unlimited-text">无限制</span>
+            </div>
+            <usage-progress
+              title="RPM"
+              :current="row.rpm_stats.current_rpm"
+              :limit="row.rpm_stats.rpm_limit"
+              :warning-threshold="row.rpm_stats.rpm_warning_threshold"
+              :is-limited="row.rpm_stats.is_rpm_limited"
+              compact
+            />
+          </div>
+          <span v-else class="text-placeholder">暂无数据</span>
+        </template>
+
+        <template #tpm_status="{ row }">
+          <div v-if="row.tpm_stats" class="rpm-tpm-status-cell">
+            <div class="usage-info">
+              <span class="current-value" :class="{ 'text-danger': row.tpm_stats.is_tpm_limited }">
+                {{ formatRpmTpmValue(row.tpm_stats.current_tpm) }}
+              </span>
+              <span v-if="row.tpm_stats.tpm_limit > 0" class="limit-value">
+                / {{ formatRpmTpmValue(row.tpm_stats.tpm_limit) }}
+              </span>
+              <span v-else class="unlimited-text">无限制</span>
+            </div>
+            <usage-progress
+              title="TPM"
+              :current="row.tpm_stats.current_tpm"
+              :limit="row.tpm_stats.tpm_limit"
+              :warning-threshold="row.tpm_stats.tpm_warning_threshold"
+              :is-limited="row.tpm_stats.is_tpm_limited"
+              compact
+            />
+          </div>
+          <span v-else class="text-placeholder">暂无数据</span>
+        </template>
+
+        <template #rpm_tpm_alerts="{ row }">
+          <alert-badge
+            v-if="row.rpm_stats"
+            :rpm-current="row.rpm_stats.current_rpm"
+            :rpm-limit="row.rpm_stats.rpm_limit"
+            :rpm-warning-threshold="row.rpm_stats.rpm_warning_threshold"
+            :is-rpm-limited="row.rpm_stats.is_rpm_limited"
+            :tpm-current="row.rpm_stats.current_tpm"
+            :tpm-limit="row.rpm_stats.tpm_limit"
+            :tpm-warning-threshold="row.rpm_stats.tpm_warning_threshold"
+            :is-tpm-limited="row.rpm_stats.is_tpm_limited"
+            :is-rate-limited="!!row.rate_limit_end_time"
+            :rate-limit-end-time="row.rate_limit_end_time"
+            simple
+          />
+          <span v-else class="text-placeholder">-</span>
+        </template>
+
         <template #last_used_time="{ row }">
           <span v-if="row.last_used_time">{{ formatDateTime(row.last_used_time) }}</span>
           <span v-else class="text-placeholder">从未使用</span>
@@ -147,6 +207,13 @@
             >
               {{ row.active_status === 1 ? '禁用' : '启用' }}
             </t-button>
+            <t-dropdown :options="getActionMenuOptions(row)" @click="handleActionMenu($event, row)">
+              <t-button variant="text" size="small">
+                <template #icon>
+                  <t-icon name="more" />
+                </template>
+              </t-button>
+            </t-dropdown>
             <t-button variant="text" size="small" theme="danger" @click="handleDelete([row])"> 删除 </t-button>
           </t-space>
         </template>
@@ -406,7 +473,7 @@
 import { SearchIcon } from 'tdesign-icons-vue-next';
 import type { FormInstanceFunctions, PrimaryTableCol, TableRowData } from 'tdesign-vue-next';
 import { MessagePlugin } from 'tdesign-vue-next';
-import { computed, onMounted, reactive, ref } from 'vue';
+import { computed, h, onMounted, reactive, ref } from 'vue';
 
 import type { Account, AccountCreateParams, AccountUpdateParams, OAuthURLResponse } from '@/api/account';
 import {
@@ -424,6 +491,10 @@ import {
 } from '@/api/account';
 import type { Group } from '@/api/group';
 import { getAllGroups } from '@/api/group';
+import type { RpmTpmStats } from '@/api/rpm-tpm';
+import { formatRpmTpmValue, getAccountRpmTpmStats } from '@/api/rpm-tpm';
+import AlertBadge from '@/components/rpm-tpm/AlertBadge.vue';
+import UsageProgress from '@/components/rpm-tpm/UsageProgress.vue';
 import { prefix } from '@/config/global';
 import { useSettingStore } from '@/store';
 
@@ -514,6 +585,21 @@ const COLUMNS: PrimaryTableCol<TableRowData>[] = [
     width: 100,
   },
   {
+    title: 'RPM 状态',
+    colKey: 'rpm_status',
+    width: 160,
+  },
+  {
+    title: 'TPM 状态',
+    colKey: 'tpm_status',
+    width: 160,
+  },
+  {
+    title: 'RPM/TPM 告警',
+    colKey: 'rpm_tpm_alerts',
+    width: 120,
+  },
+  {
     title: '限流结束时间',
     colKey: 'rate_limit_end_time',
     width: 180,
@@ -538,8 +624,13 @@ const COLUMNS: PrimaryTableCol<TableRowData>[] = [
   },
 ];
 
+// 扩展的账户接口
+interface ExtendedAccount extends Account {
+  rpm_stats?: RpmTpmStats;
+}
+
 // 数据相关
-const data = ref<Account[]>([]);
+const data = ref<ExtendedAccount[]>([]);
 const dataLoading = ref(false);
 const selectedRowKeys = ref<(string | number)[]>([]);
 const searchValue = ref('');
@@ -639,6 +730,43 @@ const formatDateTime = (dateStr: string): string => {
   return new Date(dateStr).toLocaleString('zh-CN');
 };
 
+// 获取操作菜单选项
+const getActionMenuOptions = (_row: ExtendedAccount) => [
+  {
+    content: 'RPM/TPM 详情',
+    value: 'rpm-tpm-detail',
+    prefixIcon: () => h('t-icon', { name: 'chart-line' }),
+  },
+  {
+    content: 'RPM/TPM 设置',
+    value: 'rpm-tpm-settings',
+    prefixIcon: () => h('t-icon', { name: 'setting' }),
+  },
+  {
+    content: '查看历史趋势',
+    value: 'rpm-tpm-history',
+    prefixIcon: () => h('t-icon', { name: 'chart-bar' }),
+  },
+];
+
+// 处理操作菜单点击
+const handleActionMenu = (option: { value: string }, row: ExtendedAccount) => {
+  switch (option.value) {
+    case 'rpm-tpm-detail':
+      // 跳转到 RPM/TPM 详情页
+      window.open(`/rpm-tpm/accounts?id=${row.id}`, '_blank');
+      break;
+    case 'rpm-tpm-settings':
+      // 跳转到 RPM/TPM 设置页
+      window.open(`/rpm-tpm/accounts?id=${row.id}&action=settings`, '_blank');
+      break;
+    case 'rpm-tpm-history':
+      // 跳转到 RPM/TPM 历史页
+      window.open(`/rpm-tpm/accounts?id=${row.id}&action=history`, '_blank');
+      break;
+  }
+};
+
 // 数据获取
 const fetchData = async () => {
   dataLoading.value = true;
@@ -648,7 +776,28 @@ const fetchData = async () => {
       limit: pagination.value.pageSize,
     };
     const result = await getAccountList(params);
-    data.value = result.accounts || [];
+    const accounts = result.accounts || [];
+
+    // 批量获取 RPM/TPM 数据
+    const extendedAccounts = await Promise.all(
+      accounts.map(async (account) => {
+        try {
+          const rpmTpmData = await getAccountRpmTpmStats(account.id);
+          return {
+            ...account,
+            rpm_stats: rpmTpmData.data,
+          };
+        } catch (error) {
+          console.warn(`Failed to load RPM/TPM data for account ${account.id}:`, error);
+          return {
+            ...account,
+            rpm_stats: undefined,
+          };
+        }
+      }),
+    );
+
+    data.value = extendedAccounts;
     pagination.value = {
       ...pagination.value,
       total: result.total || 0,
@@ -1086,5 +1235,34 @@ onMounted(async () => {
 
 :deep(.t-form) {
   width: 720px !important;
+}
+
+// RPM/TPM 状态样式
+.rpm-tpm-status-cell {
+  .usage-info {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin-bottom: 6px;
+    font-size: 13px;
+
+    .current-value {
+      font-weight: 500;
+      color: var(--td-text-color-primary);
+
+      &.text-danger {
+        color: var(--td-error-color);
+      }
+    }
+
+    .limit-value {
+      color: var(--td-text-color-secondary);
+    }
+
+    .unlimited-text {
+      color: var(--td-text-color-placeholder);
+      font-style: italic;
+    }
+  }
 }
 </style>

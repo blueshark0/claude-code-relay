@@ -72,6 +72,19 @@ func HandleClaudeRequest(c *gin.Context, account *model.Account, requestBody []b
 
 	apiKey := extractAPIKey(c)
 
+	// RPM/TPM 限流检查
+	err := checkRpmTpmLimits(apiKey, account)
+	if err != nil {
+		log.Printf("RPM/TPM限流检查失败: %v", err)
+		c.JSON(http.StatusTooManyRequests, appendErrorMessage(map[string]interface{}{
+			"error": map[string]interface{}{
+				"type":    "rate_limit_error",
+				"message": err.Error(),
+			},
+		}, err.Error()))
+		return
+	}
+
 	requestData := prepareRequestBody(c, requestBody)
 
 	accessToken, err := getValidAccessToken(account)
@@ -117,6 +130,11 @@ func HandleClaudeRequest(c *gin.Context, account *model.Account, requestBody []b
 
 	if apiKey != nil {
 		go service.UpdateApiKeyStatus(apiKey, resp.StatusCode, usageTokens)
+	}
+
+	// 更新RPM/TPM统计（成功请求才统计）
+	if resp.StatusCode >= statusOK && resp.StatusCode < 300 && usageTokens != nil {
+		go updateRpmTpmStats(apiKey, account, usageTokens)
 	}
 
 	saveRequestLog(startTime, apiKey, account, resp.StatusCode, usageTokens, true)
@@ -699,4 +717,46 @@ func GetCountTokens(c *gin.Context, account *model.Account, requestBody []byte) 
 
 	// 返回原始响应
 	c.Data(resp.StatusCode, resp.Header.Get("Content-Type"), responseBody)
+}
+
+// checkRpmTpmLimits 检查RPM/TPM限制
+func checkRpmTpmLimits(apiKey *model.ApiKey, account *model.Account) error {
+	rpmTpmService := service.NewRpmTpmService()
+
+	// 检查API Key级别限制
+	if apiKey != nil {
+		isLimited, reason, err := rpmTpmService.CheckApiKeyLimits(apiKey.ID)
+		if err != nil {
+			log.Printf("检查API Key限制失败: %v", err)
+			// 检查失败时不阻断请求，避免因统计系统问题影响正常服务
+		} else if isLimited {
+			return fmt.Errorf("API Key限流: %s", reason)
+		}
+	}
+
+	// 检查Account级别限制
+	if account != nil {
+		isLimited, reason, err := rpmTpmService.CheckAccountLimits(account.ID)
+		if err != nil {
+			log.Printf("检查Account限制失败: %v", err)
+			// 检查失败时不阻断请求，避免因统计系统问题影响正常服务
+		} else if isLimited {
+			return fmt.Errorf("Account限流: %s", reason)
+		}
+	}
+
+	return nil
+}
+
+// updateRpmTpmStats 更新RPM/TPM统计
+func updateRpmTpmStats(apiKey *model.ApiKey, account *model.Account, usageTokens *common.TokenUsage) {
+	if apiKey == nil || account == nil || usageTokens == nil {
+		return
+	}
+
+	rpmTpmService := service.NewRpmTpmService()
+	err := rpmTpmService.UpdateBothLevelsStats(apiKey.ID, account.ID, usageTokens)
+	if err != nil {
+		log.Printf("更新RPM/TPM统计失败: %v", err)
+	}
 }

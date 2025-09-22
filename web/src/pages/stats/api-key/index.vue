@@ -466,7 +466,7 @@ function getUsageStatus(totalCost: number, totalLimit: number) {
 }
 
 // 获取过期状态主题
-function getExpirationTheme(expiresAt: string): string {
+function _getExpirationTheme(expiresAt: string): string {
   const expireDate = new Date(expiresAt);
   const now = new Date();
   const diffDays = Math.ceil((expireDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));

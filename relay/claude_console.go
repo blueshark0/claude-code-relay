@@ -10,6 +10,7 @@ import (
 	"context"
 	"crypto/tls"
 	"errors"
+	"fmt"
 	"io"
 	"log"
 	"net/http"
@@ -55,6 +56,19 @@ func HandleClaudeConsoleRequest(c *gin.Context, account *model.Account, requestB
 
 	apiKey := extractConsoleAPIKey(c)
 
+	// RPM/TPM 限流检查
+	err := checkConsoleRpmTpmLimits(apiKey, account)
+	if err != nil {
+		log.Printf("RPM/TPM限流检查失败: %v", err)
+		c.JSON(http.StatusTooManyRequests, appendConsoleErrorMessage(gin.H{
+			"error": map[string]interface{}{
+				"type":    "rate_limit_error",
+				"message": err.Error(),
+			},
+		}, err.Error()))
+		return
+	}
+
 	body, err := parseConsoleRequest(c, requestBody)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, appendConsoleErrorMessage(consoleErrRequestBodyRead, err.Error()))
@@ -98,6 +112,11 @@ func HandleClaudeConsoleRequest(c *gin.Context, account *model.Account, requestB
 	// 更新API Key状态
 	if apiKey != nil {
 		go service.UpdateApiKeyStatus(apiKey, resp.StatusCode, usageTokens)
+	}
+
+	// 更新RPM/TPM统计（成功请求才统计）
+	if resp.StatusCode >= consoleStatusOK && resp.StatusCode < 300 && usageTokens != nil {
+		go updateConsoleRpmTpmStats(apiKey, account, usageTokens)
 	}
 
 	// 保存请求日志
@@ -441,4 +460,46 @@ func TestHandleClaudeConsoleRequest(account *model.Account) (int, string) {
 	defer common.CloseIO(resp.Body)
 
 	return resp.StatusCode, ""
+}
+
+// checkConsoleRpmTpmLimits Console平台的RPM/TPM限制检查
+func checkConsoleRpmTpmLimits(apiKey *model.ApiKey, account *model.Account) error {
+	rpmTpmService := service.NewRpmTpmService()
+
+	// 检查API Key级别限制
+	if apiKey != nil {
+		isLimited, reason, err := rpmTpmService.CheckApiKeyLimits(apiKey.ID)
+		if err != nil {
+			log.Printf("检查API Key限制失败: %v", err)
+			// 检查失败时不阻断请求，避免因统计系统问题影响正常服务
+		} else if isLimited {
+			return fmt.Errorf("API Key限流: %s", reason)
+		}
+	}
+
+	// 检查Account级别限制
+	if account != nil {
+		isLimited, reason, err := rpmTpmService.CheckAccountLimits(account.ID)
+		if err != nil {
+			log.Printf("检查Account限制失败: %v", err)
+			// 检查失败时不阻断请求，避免因统计系统问题影响正常服务
+		} else if isLimited {
+			return fmt.Errorf("Account限流: %s", reason)
+		}
+	}
+
+	return nil
+}
+
+// updateConsoleRpmTpmStats 更新Console平台的RPM/TPM统计
+func updateConsoleRpmTpmStats(apiKey *model.ApiKey, account *model.Account, usageTokens *common.TokenUsage) {
+	if apiKey == nil || account == nil || usageTokens == nil {
+		return
+	}
+
+	rpmTpmService := service.NewRpmTpmService()
+	err := rpmTpmService.UpdateBothLevelsStats(apiKey.ID, account.ID, usageTokens)
+	if err != nil {
+		log.Printf("更新Console RPM/TPM统计失败: %v", err)
+	}
 }

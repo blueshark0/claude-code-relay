@@ -57,7 +57,7 @@ import { computed } from 'vue';
 
 import type { DashboardStats } from '@/api/dashboard';
 import Trend from '@/components/trend/index.vue';
-import { t } from '@/locales';
+import { t as _ } from '@/locales';
 
 interface Props {
   dashboardData?: DashboardStats;
@@ -166,7 +166,7 @@ const formatGrowthRate = (rate: number) => {
   return rate >= 0 ? `+${formattedRate}%` : `-${formattedRate}%`;
 };
 
-const rehandleClickOp = (val: MouseEvent) => {
+const _rehandleClickOp = (val: MouseEvent) => {
   console.log(val);
 };
 const getRankClass = (index: number) => {
