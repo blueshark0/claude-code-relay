@@ -53,6 +53,7 @@ type CreateApiKeyRequest struct {
 }
 
 type AutoCreateApiKeyRequest struct {
+	Name             *string `json:"name"`
 	Key              string  `json:"key"`
 	ExpiresAt        *Time   `json:"expires_at"`
 	ExpireDays       *int    `json:"expire_days"`

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log"
 	"math/rand"
+	"strings"
 	"time"
 
 	"gorm.io/gorm"
@@ -63,8 +64,20 @@ func AutoCreateApiKey(userID uint, req *model.AutoCreateApiKeyRequest) (*model.A
 		return nil, errors.New("expire_days必须为正整数")
 	}
 
-	// 生成8位随机数作为name
-	randomName := fmt.Sprintf("%08d", rand.Intn(90000000)+10000000)
+	// 确定API Key名称
+	var apiKeyName string
+	if req.Name != nil && strings.TrimSpace(*req.Name) != "" {
+		// 用户提供了name，使用用户提供的名称
+		apiKeyName = strings.TrimSpace(*req.Name)
+
+		// 验证name长度
+		if len(apiKeyName) > 100 {
+			return nil, errors.New("API Key名称长度不能超过100个字符")
+		}
+	} else {
+		// 用户未提供name，生成8位随机数
+		apiKeyName = fmt.Sprintf("%08d", rand.Intn(90000000)+10000000)
+	}
 
 	// 计算过期时间
 	var expiresAt *model.Time
@@ -80,7 +93,7 @@ func AutoCreateApiKey(userID uint, req *model.AutoCreateApiKeyRequest) (*model.A
 
 	// 转换为CreateApiKeyRequest结构
 	createReq := &model.CreateApiKeyRequest{
-		Name:             randomName,
+		Name:             apiKeyName,
 		Key:              req.Key,
 		ExpiresAt:        expiresAt,
 		Status:           req.Status,

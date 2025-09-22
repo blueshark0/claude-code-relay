@@ -53,7 +53,8 @@ func CreateApiKey(c *gin.Context) {
 	})
 }
 
-// AutoCreateApiKey 自动创建API Key（自动生成8位随机数作为名称）
+// AutoCreateApiKey 自动创建API Key
+// name字段可选：如果提供则使用用户指定名称，否则自动生成8位随机数作为名称
 // 支持通过expire_days字段设置有效期天数，优先级：expires_at > expire_days > 永久有效
 func AutoCreateApiKey(c *gin.Context) {
 	var req model.AutoCreateApiKeyRequest
@@ -74,7 +75,7 @@ func AutoCreateApiKey(c *gin.Context) {
 		var statusCode int
 		var code int
 		switch err.Error() {
-		case "API Key名称不能为空", "指定的分组不存在", "过期时间不能早于当前时间", "expire_days必须为正整数":
+		case "API Key名称不能为空", "指定的分组不存在", "过期时间不能早于当前时间", "expire_days必须为正整数", "API Key名称长度不能超过100个字符":
 			statusCode = http.StatusBadRequest
 			code = constant.InvalidParams
 		default:
