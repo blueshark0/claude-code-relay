@@ -4,7 +4,9 @@ import (
 	"claude-code-relay/common"
 	"claude-code-relay/model"
 	"errors"
+	"fmt"
 	"log"
+	"math/rand"
 	"time"
 
 	"gorm.io/gorm"
@@ -53,6 +55,43 @@ func CreateApiKey(userID uint, req *model.CreateApiKeyRequest) (*model.ApiKey, e
 	}
 
 	return apiKey, nil
+}
+
+func AutoCreateApiKey(userID uint, req *model.AutoCreateApiKeyRequest) (*model.ApiKey, error) {
+	// 验证expire_days参数
+	if req.ExpireDays != nil && *req.ExpireDays <= 0 {
+		return nil, errors.New("expire_days必须为正整数")
+	}
+
+	// 生成8位随机数作为name
+	randomName := fmt.Sprintf("%08d", rand.Intn(90000000)+10000000)
+
+	// 计算过期时间
+	var expiresAt *model.Time
+	if req.ExpiresAt != nil {
+		// 如果直接指定了expires_at，优先使用
+		expiresAt = req.ExpiresAt
+	} else if req.ExpireDays != nil {
+		// 如果没有指定expires_at但指定了expire_days，计算过期时间
+		expireTime := time.Now().AddDate(0, 0, *req.ExpireDays)
+		expiresAt = (*model.Time)(&expireTime)
+	}
+	// 如果两者都没有指定，则不设置过期时间（expiresAt保持为nil）
+
+	// 转换为CreateApiKeyRequest结构
+	createReq := &model.CreateApiKeyRequest{
+		Name:             randomName,
+		Key:              req.Key,
+		ExpiresAt:        expiresAt,
+		Status:           req.Status,
+		GroupID:          req.GroupID,
+		ModelRestriction: req.ModelRestriction,
+		DailyLimit:       req.DailyLimit,
+		TotalLimit:       req.TotalLimit,
+	}
+
+	// 复用现有的CreateApiKey逻辑
+	return CreateApiKey(userID, createReq)
 }
 
 func GetApiKeyById(id, userID uint) (*model.ApiKey, error) {
