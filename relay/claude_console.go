@@ -116,11 +116,16 @@ func extractConsoleAPIKey(c *gin.Context) *model.ApiKey {
 func parseConsoleRequest(c *gin.Context, requestBody []byte) ([]byte, error) {
 	body, _ := sjson.SetBytes(requestBody, "stream", true) // 强制流式输出
 
-	// 上下文中提取分组ID
-	if groupID, exists := c.Get("group_id"); exists {
-		body, _ = sjson.SetBytes(body, "metadata.user_id", model.GetInstanceID(uint(groupID.(int))))
+	// 检查原始请求中是否已存在user_id
+	if originalUserID := gjson.GetBytes(requestBody, "metadata.user_id"); originalUserID.Exists() {
+		body, _ = sjson.SetBytes(body, "metadata.user_id", originalUserID.String())
 	} else {
-		body, _ = sjson.SetBytes(body, "metadata.user_id", common.GetInstanceID()) // 设置固定的用户ID
+		// 上下文中提取分组ID
+		if groupID, exists := c.Get("group_id"); exists {
+			body, _ = sjson.SetBytes(body, "metadata.user_id", model.GetInstanceID(uint(groupID.(int))))
+		} else {
+			body, _ = sjson.SetBytes(body, "metadata.user_id", common.GetInstanceID()) // 设置固定的用户ID
+		}
 	}
 
 	return body, nil
