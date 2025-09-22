@@ -1,44 +1,38 @@
 package common
 
 import (
-	"fmt"
 	"strings"
 )
 
 // TestRequestBodyTemplate 测试用的标准请求体模板
 const TestRequestBodyTemplate = `{
-	"model": "claude-sonnet-4-20250514",
-	"messages": [
-		{
-			"role": "user",
-			"content": [
-				{
-					"type": "text",
-					"text": "hi"
-				}
-			]
-		}
-	],
-	"temperature": 1,
-	"system": [
-		{
-			"type": "text",
-			"text": "You are Claude Code, Anthropic's official CLI for Claude.",
-			"cache_control": {
-				"type": "ephemeral"
-			}
-		}
-	],
+	"model": "claude-3-5-haiku-20241022",
+	"max_tokens": 512,
+    "messages": [
+        {
+            "role": "user",
+            "content": "Please write a 5-10 word title for the following conversation:\n\nUser: hello\n\nRespond with the title for the conversation and nothing else."
+        }
+    ],
+    "system": [
+        {
+            "type": "text",
+            "text": "Summarize this coding conversation in under 50 characters.\nCapture the main task, key files, problems addressed, and current status.",
+            "cache_control": {
+                "type": "ephemeral"
+            }
+        }
+    ],
 	"metadata": {
-		"user_id": "20b98a014e3182f9ce654e6c105432083cca392beb1416f6406508b56dc5f"
+		"user_id": "user_cc036db0165a4c6a12bfb24190e994e65bc28f0625db9ba581806b633f14d672_account__session_598af368-4d3c-4ebe-9149-925d142c4119"
 	},
-	"max_tokens": %d,
 	"stream": true
 }`
 
 // GetTestRequestBody 获取带指定max_tokens的测试请求体
 func GetTestRequestBody(maxTokens int) string {
-	return fmt.Sprintf(TestRequestBodyTemplate, maxTokens)
+	//return fmt.Sprintf(TestRequestBodyTemplate, maxTokens)
+	return TestRequestBodyTemplate
 }
 
 // TestRequestBody 默认测试请求体（64000 tokens）
@@ -57,7 +51,7 @@ func getGlobalClaudeCodeHeaders() map[string]string {
 		"X-Stainless-Runtime":                       "node",
 		"x-stainless-helper-method":                 "stream",
 		"x-app":                                     "cli",
-		"User-Agent":                                "claude-cli/1.0.44 (external, cli)",
+		"User-Agent":                                "claude-cli/1.0.120 (external, cli)",
 		"anthropic-beta":                            "claude-code-20250219,oauth-2025-04-20,interleaved-thinking-2025-05-14,fine-grained-tool-streaming-2025-05-14",
 		"X-Stainless-Runtime-Version":               "v20.18.1",
 		"anthropic-dangerous-direct-browser-access": "true",
