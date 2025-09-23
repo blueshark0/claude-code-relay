@@ -99,6 +99,7 @@ func SetAPIRouter(server *gin.Engine, embeddedFS embed.FS, staticFileSystem http
 			{
 				apikey.GET("/list", controller.GetApiKeys)                      // 获取API Key列表
 				apikey.POST("/create", controller.CreateApiKey)                 // 创建API Key
+				apikey.POST("/autocreate", controller.AutoCreateApiKey)         // 自动创建API Key（自动生成名称）
 				apikey.GET("/detail/:id", controller.GetApiKey)                 // 获取API Key详情
 				apikey.PUT("/update/:id", controller.UpdateApiKey)              // 更新API Key
 				apikey.PUT("/update-status/:id", controller.UpdateApiKeyStatus) // 更新API Key状态

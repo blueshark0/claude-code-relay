@@ -53,6 +53,45 @@ func CreateApiKey(c *gin.Context) {
 	})
 }
 
+// AutoCreateApiKey 自动创建API Key
+// name字段可选：如果提供则使用用户指定名称，否则自动生成8位随机数作为名称
+// 支持通过expire_days字段设置有效期天数，优先级：expires_at > expire_days > 永久有效
+func AutoCreateApiKey(c *gin.Context) {
+	var req model.AutoCreateApiKeyRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "请求参数错误",
+			"code":  constant.InvalidParams,
+		})
+		return
+	}
+
+	// 从认证中获取用户ID
+	user := c.MustGet("user").(*model.User)
+	userID := user.ID
+
+	apiKey, err := service.AutoCreateApiKey(userID, &req)
+	if err != nil {
+		var statusCode int
+		var code int
+		switch err.Error() {
+		case "API Key名称不能为空", "指定的分组不存在", "过期时间不能早于当前时间", "expire_days必须为正整数", "API Key名称长度不能超过100个字符":
+			statusCode = http.StatusBadRequest
+			code = constant.InvalidParams
+		default:
+			statusCode = http.StatusInternalServerError
+			code = constant.InternalServerError
+		}
+		c.JSON(statusCode, gin.H{
+			"error": err.Error(),
+			"code":  code,
+		})
+		return
+	}
+
+	c.String(http.StatusOK, apiKey.Key)
+}
+
 // GetApiKey 获取API Key详情
 func GetApiKey(c *gin.Context) {
 	id := c.Param("id")

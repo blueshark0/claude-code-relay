@@ -52,6 +52,18 @@ type CreateApiKeyRequest struct {
 	TotalLimit       float64 `json:"total_limit"`
 }
 
+type AutoCreateApiKeyRequest struct {
+	Name             *string `json:"name"`
+	Key              string  `json:"key"`
+	ExpiresAt        *Time   `json:"expires_at"`
+	ExpireDays       *int    `json:"expire_days"`
+	Status           int     `json:"status" binding:"oneof=1 2"`
+	GroupID          int     `json:"group_id"`
+	ModelRestriction string  `json:"model_restriction"`
+	DailyLimit       float64 `json:"daily_limit"`
+	TotalLimit       float64 `json:"total_limit"`
+}
+
 type UpdateApiKeyRequest struct {
 	Name             string   `json:"name"`
 	ExpiresAt        *Time    `json:"expires_at"`
