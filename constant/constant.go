@@ -40,6 +40,7 @@ const (
 	PlatformClaudeConsole = "claude_console"
 	PlatformOpenAI        = "openai"
 	PlatformGemini        = "gemini"
+	PlatformCodex         = "codex"
 
 	ClaudeCodeSystemPrompt = "You are Claude Code, Anthropic's official CLI for Claude."
 )
