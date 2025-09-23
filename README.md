@@ -41,12 +41,13 @@
 - ✅ 支持添加 Claude 官方账号 (需Pro及以上订阅版本)
 - ✅ 支持添加任意 Claude Code 的镜像接口 (官方镜像站/智谱/通义千问等)
 - ✅ 支持任意符合 OpenAI API 格式的接口
+- ✅ 支持 OpenAI Codex 代码生成模型接口
 
 ## ✨ 核心特性
 
 **后端服务**
 - 多账号池统一管理，智能负载均衡
-- 支持Claude官方API和Claude Console双平台
+- 支持Claude官方API、Claude Console、OpenAI API和Codex多平台
 - 基于权重和优先级的智能调度算法
 - 完整的Token使用统计和成本计算
 - 分层架构设计（Controller-Service-Model）

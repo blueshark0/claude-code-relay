@@ -44,12 +44,13 @@ Also provides complete usage statistics and cost calculation, allowing you to cl
 - ✅ Supports Claude official accounts (requires Pro+ subscription)
 - ✅ Supports any Claude Code mirror interfaces (official mirrors/GLM/Qwen, etc.)
 - ✅ Supports any OpenAI API format compatible interfaces
+- ✅ Supports OpenAI Codex code generation models
 
 ## ✨ Core Features
 
 **Backend Services**
 - Unified multi-account pool management with intelligent load balancing
-- Supports both Claude official API and Claude Console platforms
+- Supports Claude official API, Claude Console, OpenAI API, and Codex multi-platform
 - Smart scheduling algorithm based on weight and priority
 - Complete token usage statistics and cost calculation
 - Layered architecture design (Controller-Service-Model)
