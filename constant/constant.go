@@ -32,6 +32,8 @@ const (
 	Forbidden              = 40003
 	InsufficientPrivileges = 40004
 	NotFound               = 40005
+	ResourceNotFound       = 40006
+	PermissionDenied       = 40007
 	TooManyRequests        = 42901
 	InternalServerError    = 50000
 

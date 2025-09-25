@@ -129,6 +129,7 @@ func SetAPIRouter(server *gin.Engine, embeddedFS embed.FS, staticFileSystem http
 
 			// RPM/TPM 仪表盘
 			authenticated.GET("/rpm-tpm/dashboard", controller.GetRpmTpmDashboard) // 获取RPM/TPM仪表盘数据
+			authenticated.GET("/rpm-tpm/system", controller.GetSystemRpmTpmStats)  // 获取系统总体RPM/TPM统计
 
 			// 管理员接口
 			admin := authenticated.Group("/admin")

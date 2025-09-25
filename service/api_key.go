@@ -85,8 +85,8 @@ func UpdateApiKey(id, userID uint, req *model.UpdateApiKeyRequest) (*model.ApiKe
 	}
 
 	// 更新字段
-	if req.Name != "" {
-		apiKey.Name = req.Name
+	if req.Name != nil && *req.Name != "" {
+		apiKey.Name = *req.Name
 	}
 	if req.ExpiresAt != nil {
 		apiKey.ExpiresAt = req.ExpiresAt

@@ -6,7 +6,6 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"math"
 	"strconv"
 	"time"
 
@@ -36,17 +35,21 @@ type RpmTpmResult struct {
 	RateLimitEndTime   *time.Time `json:"rate_limit_end_time"`
 }
 
-// UpdateBothLevelsStats 同时更新API Key和Account级别的RPM/TPM统计
+// UpdateBothLevelsStats 同时更新API Key、Account和系统级别的RPM/TPM统计
 func (s *RpmTpmService) UpdateBothLevelsStats(apiKeyID, accountID uint, usage *common.TokenUsage) error {
 	now := time.Now()
-	minuteKey := now.Format("2006-01-02-15:04")
+	// 使用5秒精度的时间键
+	second := now.Second()
+	roundedSecond := (second / 5) * 5
+	timeKey := fmt.Sprintf("%s:%02d", now.Format("2006-01-02-15:04"), roundedSecond)
 
 	// 计算总token数
 	totalTokens := usage.InputTokens + usage.OutputTokens + usage.CacheReadInputTokens + usage.CacheCreationInputTokens
 
-	// 并发更新两个级别的统计
-	err1 := s.updateApiKeyStats(apiKeyID, minuteKey, totalTokens)
-	err2 := s.updateAccountStats(accountID, minuteKey, totalTokens)
+	// 并发更新三个级别的统计
+	err1 := s.updateApiKeyStats(apiKeyID, timeKey, totalTokens)
+	err2 := s.updateAccountStats(accountID, timeKey, totalTokens)
+	err3 := s.updateSystemStats(timeKey, totalTokens)
 
 	if err1 != nil {
 		return fmt.Errorf("更新API Key统计失败: %v", err1)
@@ -54,47 +57,71 @@ func (s *RpmTpmService) UpdateBothLevelsStats(apiKeyID, accountID uint, usage *c
 	if err2 != nil {
 		return fmt.Errorf("更新Account统计失败: %v", err2)
 	}
+	if err3 != nil {
+		return fmt.Errorf("更新系统统计失败: %v", err3)
+	}
 
 	return nil
 }
 
 // updateApiKeyStats 更新API Key级别统计
-func (s *RpmTpmService) updateApiKeyStats(apiKeyID uint, minuteKey string, tokens int) error {
+func (s *RpmTpmService) updateApiKeyStats(apiKeyID uint, timeKey string, tokens int) error {
 	ctx := context.Background()
 
-	// Redis键名
-	requestsKey := fmt.Sprintf("api_key:%d:requests:%s", apiKeyID, minuteKey)
-	tokensKey := fmt.Sprintf("api_key:%d:tokens:%s", apiKeyID, minuteKey)
+	// Redis键名 - 使用5秒精度
+	requestsKey := fmt.Sprintf("api_key:%d:requests:%s", apiKeyID, timeKey)
+	tokensKey := fmt.Sprintf("api_key:%d:tokens:%s", apiKeyID, timeKey)
 
 	// 使用Pipeline提高性能
 	pipe := s.redisClient.Pipeline()
 
 	// 增加请求计数和token计数
 	pipe.Incr(ctx, requestsKey)
-	pipe.Expire(ctx, requestsKey, 2*time.Minute) // TTL 2分钟
+	pipe.Expire(ctx, requestsKey, 90*time.Second) // TTL 90秒，保证60秒窗口数据完整
 	pipe.IncrBy(ctx, tokensKey, int64(tokens))
-	pipe.Expire(ctx, tokensKey, 2*time.Minute)
+	pipe.Expire(ctx, tokensKey, 90*time.Second)
 
 	_, err := pipe.Exec(ctx)
 	return err
 }
 
 // updateAccountStats 更新Account级别统计
-func (s *RpmTpmService) updateAccountStats(accountID uint, minuteKey string, tokens int) error {
+func (s *RpmTpmService) updateAccountStats(accountID uint, timeKey string, tokens int) error {
 	ctx := context.Background()
 
-	// Redis键名
-	requestsKey := fmt.Sprintf("account:%d:requests:%s", accountID, minuteKey)
-	tokensKey := fmt.Sprintf("account:%d:tokens:%s", accountID, minuteKey)
+	// Redis键名 - 使用5秒精度
+	requestsKey := fmt.Sprintf("account:%d:requests:%s", accountID, timeKey)
+	tokensKey := fmt.Sprintf("account:%d:tokens:%s", accountID, timeKey)
 
 	// 使用Pipeline提高性能
 	pipe := s.redisClient.Pipeline()
 
 	// 增加请求计数和token计数
 	pipe.Incr(ctx, requestsKey)
-	pipe.Expire(ctx, requestsKey, 2*time.Minute) // TTL 2分钟
+	pipe.Expire(ctx, requestsKey, 90*time.Second) // TTL 90秒
 	pipe.IncrBy(ctx, tokensKey, int64(tokens))
-	pipe.Expire(ctx, tokensKey, 2*time.Minute)
+	pipe.Expire(ctx, tokensKey, 90*time.Second)
+
+	_, err := pipe.Exec(ctx)
+	return err
+}
+
+// updateSystemStats 更新系统级别统计
+func (s *RpmTpmService) updateSystemStats(timeKey string, tokens int) error {
+	ctx := context.Background()
+
+	// Redis键名 - 系统级别统计
+	requestsKey := fmt.Sprintf("system:requests:%s", timeKey)
+	tokensKey := fmt.Sprintf("system:tokens:%s", timeKey)
+
+	// 使用Pipeline提高性能
+	pipe := s.redisClient.Pipeline()
+
+	// 增加请求计数和token计数
+	pipe.Incr(ctx, requestsKey)
+	pipe.Expire(ctx, requestsKey, 90*time.Second) // TTL 90秒
+	pipe.IncrBy(ctx, tokensKey, int64(tokens))
+	pipe.Expire(ctx, tokensKey, 90*time.Second)
 
 	_, err := pipe.Exec(ctx)
 	return err
@@ -186,18 +213,19 @@ func (s *RpmTpmService) GetAccountCurrentStats(accountID uint) (*RpmTpmResult, e
 	return result, nil
 }
 
-// calculateApiKeyCurrentRpmTpm 计算API Key当前RPM/TPM（60秒滑动窗口）
+// calculateApiKeyCurrentRpmTpm 计算API Key当前RPM/TPM（60秒滑动窗口，5秒精度）
 func (s *RpmTpmService) calculateApiKeyCurrentRpmTpm(apiKeyID uint) (int, int, error) {
 	ctx := context.Background()
 	now := time.Now()
 
-	// 计算过去60秒的分钟键
+	// 生成12个5秒时间片的key（60秒窗口）
 	var requestKeys, tokenKeys []string
-	for i := 0; i < 60; i++ {
-		t := now.Add(-time.Duration(i) * time.Second)
-		minuteKey := t.Format("2006-01-02-15:04")
-		requestKeys = append(requestKeys, fmt.Sprintf("api_key:%d:requests:%s", apiKeyID, minuteKey))
-		tokenKeys = append(tokenKeys, fmt.Sprintf("api_key:%d:tokens:%s", apiKeyID, minuteKey))
+	for i := 0; i < 12; i++ {
+		t := now.Add(-time.Duration(i*5) * time.Second)
+		second := (t.Second() / 5) * 5
+		timeKey := fmt.Sprintf("%s:%02d", t.Format("2006-01-02-15:04"), second)
+		requestKeys = append(requestKeys, fmt.Sprintf("api_key:%d:requests:%s", apiKeyID, timeKey))
+		tokenKeys = append(tokenKeys, fmt.Sprintf("api_key:%d:tokens:%s", apiKeyID, timeKey))
 	}
 
 	// 并发获取所有键的值
@@ -252,18 +280,19 @@ func (s *RpmTpmService) calculateApiKeyCurrentRpmTpm(apiKeyID uint) (int, int, e
 	return totalRequests, totalTokens, nil
 }
 
-// calculateAccountCurrentRpmTpm 计算Account当前RPM/TPM（60秒滑动窗口）
+// calculateAccountCurrentRpmTpm 计算Account当前RPM/TPM（60秒滑动窗口，5秒精度）
 func (s *RpmTpmService) calculateAccountCurrentRpmTpm(accountID uint) (int, int, error) {
 	ctx := context.Background()
 	now := time.Now()
 
-	// 计算过去60秒的分钟键
+	// 生成12个5秒时间片的key（60秒窗口）
 	var requestKeys, tokenKeys []string
-	for i := 0; i < 60; i++ {
-		t := now.Add(-time.Duration(i) * time.Second)
-		minuteKey := t.Format("2006-01-02-15:04")
-		requestKeys = append(requestKeys, fmt.Sprintf("account:%d:requests:%s", accountID, minuteKey))
-		tokenKeys = append(tokenKeys, fmt.Sprintf("account:%d:tokens:%s", accountID, minuteKey))
+	for i := 0; i < 12; i++ {
+		t := now.Add(-time.Duration(i*5) * time.Second)
+		second := (t.Second() / 5) * 5
+		timeKey := fmt.Sprintf("%s:%02d", t.Format("2006-01-02-15:04"), second)
+		requestKeys = append(requestKeys, fmt.Sprintf("account:%d:requests:%s", accountID, timeKey))
+		tokenKeys = append(tokenKeys, fmt.Sprintf("account:%d:tokens:%s", accountID, timeKey))
 	}
 
 	// 并发获取所有键的值
@@ -316,6 +345,120 @@ func (s *RpmTpmService) calculateAccountCurrentRpmTpm(accountID uint) (int, int,
 	}
 
 	return totalRequests, totalTokens, nil
+}
+
+// calculateSystemCurrentRpmTpm 计算系统当前RPM/TPM（60秒滑动窗口，5秒精度）
+func (s *RpmTpmService) calculateSystemCurrentRpmTpm() (int, int, error) {
+	ctx := context.Background()
+	now := time.Now()
+
+	// 生成12个5秒时间片的key（60秒窗口）
+	var requestKeys, tokenKeys []string
+	for i := 0; i < 12; i++ {
+		t := now.Add(-time.Duration(i*5) * time.Second)
+		second := (t.Second() / 5) * 5
+		timeKey := fmt.Sprintf("%s:%02d", t.Format("2006-01-02-15:04"), second)
+		requestKeys = append(requestKeys, fmt.Sprintf("system:requests:%s", timeKey))
+		tokenKeys = append(tokenKeys, fmt.Sprintf("system:tokens:%s", timeKey))
+	}
+
+	// 并发获取所有键的值
+	pipe := s.redisClient.Pipeline()
+
+	// 添加所有GET命令
+	requestCmds := make([]*redis.StringCmd, len(requestKeys))
+	tokenCmds := make([]*redis.StringCmd, len(tokenKeys))
+
+	for i, key := range requestKeys {
+		requestCmds[i] = pipe.Get(ctx, key)
+	}
+	for i, key := range tokenKeys {
+		tokenCmds[i] = pipe.Get(ctx, key)
+	}
+
+	_, err := pipe.Exec(ctx)
+	if err != nil && err != redis.Nil {
+		return 0, 0, err
+	}
+
+	// 累计结果
+	totalRequests := 0
+	totalTokens := 0
+
+	for _, cmd := range requestCmds {
+		val, err := cmd.Result()
+		if err == redis.Nil {
+			continue
+		}
+		if err != nil {
+			log.Printf("获取请求计数失败: %v", err)
+			continue
+		}
+		count, _ := strconv.Atoi(val)
+		totalRequests += count
+	}
+
+	for _, cmd := range tokenCmds {
+		val, err := cmd.Result()
+		if err == redis.Nil {
+			continue
+		}
+		if err != nil {
+			log.Printf("获取token计数失败: %v", err)
+			continue
+		}
+		count, _ := strconv.Atoi(val)
+		totalTokens += count
+	}
+
+	return totalRequests, totalTokens, nil
+}
+
+// GetSystemCurrentStats 获取系统当前RPM/TPM统计
+func (s *RpmTpmService) GetSystemCurrentStats() (*RpmTpmResult, error) {
+	// 计算当前RPM/TPM
+	rpm, tpm, err := s.calculateSystemCurrentRpmTpm()
+	if err != nil {
+		return nil, err
+	}
+
+	// 构建返回结果
+	result := &RpmTpmResult{
+		Rpm: rpm,
+		Tpm: tpm,
+	}
+
+	// 获取系统配置（如果存在系统级别限制）
+	systemRpmLimit := s.getSystemRpmLimit()
+	systemTpmLimit := s.getSystemTpmLimit()
+
+	// 计算RPM使用率
+	if systemRpmLimit > 0 {
+		result.RpmUsagePercentage = float64(rpm) / float64(systemRpmLimit) * 100
+		result.IsRpmLimited = rpm >= systemRpmLimit
+	}
+
+	// 计算TPM使用率
+	if systemTpmLimit > 0 {
+		result.TpmUsagePercentage = float64(tpm) / float64(systemTpmLimit) * 100
+		result.IsTpmLimited = tpm >= systemTpmLimit
+	}
+
+	return result, nil
+}
+
+// getSystemRpmLimit 获取系统RPM限制（从配置或环境变量）
+func (s *RpmTpmService) getSystemRpmLimit() int {
+	// TODO: 从配置文件或环境变量读取
+	// 暂时返回0表示无限制
+	return 0
+}
+
+// getSystemTpmLimit 获取系统TPM限制（从配置或环境变量）
+func (s *RpmTpmService) getSystemTpmLimit() int {
+	// TODO: 从配置文件或环境变量读取
+	// 暂时返回0表示无限制
+	return 0
 }
 
 // CheckApiKeyLimits 检查API Key是否超过RPM/TPM限制
@@ -607,11 +750,6 @@ func (s *RpmTpmService) saveAccountHistoryStats(minuteTimestamp time.Time) error
 
 // CleanExpiredCache 清理过期的Redis缓存（定时任务调用）
 func (s *RpmTpmService) CleanExpiredCache() error {
-	ctx := context.Background()
-
-	// 清理超过1天的缓存键
-	cutoffTime := time.Now().Add(-24 * time.Hour)
-
 	// 这里可以实现批量清理逻辑，或者依赖Redis的TTL自动清理
 	// 由于我们已经设置了TTL，Redis会自动清理过期键
 

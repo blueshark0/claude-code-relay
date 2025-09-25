@@ -506,8 +506,6 @@ func GetRpmTpmDashboard(c *gin.Context) {
 	// 获取当前用户信息
 	user := c.MustGet("user").(*model.User)
 
-	rpmTpmService := service.NewRpmTpmService()
-
 	// 构建仪表盘数据
 	dashboard := gin.H{
 		"summary": gin.H{
@@ -624,6 +622,48 @@ func GetRpmTpmDashboard(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{
 		"data": dashboard,
+		"code": constant.Success,
+	})
+}
+
+// GetSystemRpmTpmStats 获取系统总体RPM/TPM统计信息
+func GetSystemRpmTpmStats(c *gin.Context) {
+	// 获取当前用户信息
+	user := c.MustGet("user").(*model.User)
+
+	// 仅管理员可查看系统总体统计
+	if user.Role != "admin" {
+		c.JSON(http.StatusForbidden, gin.H{
+			"error": "权限不足",
+			"code":  constant.PermissionDenied,
+		})
+		return
+	}
+
+	// 获取系统RPM/TPM统计
+	rpmTpmService := service.NewRpmTpmService()
+	stats, err := rpmTpmService.GetSystemCurrentStats()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "获取系统统计信息失败: " + err.Error(),
+			"code":  constant.InternalServerError,
+		})
+		return
+	}
+
+	// 构建响应数据
+	response := gin.H{
+		"rpm":                  stats.Rpm,
+		"tpm":                  stats.Tpm,
+		"rpm_usage_percentage": stats.RpmUsagePercentage,
+		"tpm_usage_percentage": stats.TpmUsagePercentage,
+		"is_rpm_limited":       stats.IsRpmLimited,
+		"is_tpm_limited":       stats.IsTpmLimited,
+		"timestamp":            time.Now(),
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"data": response,
 		"code": constant.Success,
 	})
 }
